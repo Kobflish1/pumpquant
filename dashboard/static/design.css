@@ -1,0 +1,259 @@
+/* PumpQuant — shared design system (overview and research terminal)
+ *
+ * Two layers, as in Apple's Liquid Glass model: solid content cards, and a
+ * floating functional layer (sidebar, toolbar capsules, selection) made of
+ * glass. Light lives in the content layer so the glass has something to bend.
+ */
+
+@font-face { font-family: "Mona Sans"; font-weight: 200 900; font-stretch: 75% 125%; font-display: swap; src: url("fonts/mona-sans.woff2") format("woff2"); }
+@font-face { font-family: "Commit Mono"; font-weight: 400; font-display: swap; src: url("fonts/commit-mono-400.woff2") format("woff2"); }
+
+/* ---------- Tokens ---------- */
+
+:root {
+  color-scheme: dark;
+  --bg: #000;
+  --card: oklch(19.5% .005 260);
+  --card-hi: oklch(25% .006 260);
+  --fill: rgb(255 255 255 / 6%);
+  --fill-2: rgb(255 255 255 / 10%);
+  --line: rgb(255 255 255 / 8%);
+  --text: #f5f5f7;
+  --text-2: #a1a1a6;
+  --text-3: #6e6e73;
+  --blue: #0a84ff;
+  --cyan: #64d2ff;
+  --green: #30d158;
+  --red: #ff453a;
+  --amber: #ffd60a;
+  --glass-fill: rgb(30 30 34 / 52%);
+  --glass-rim: rgb(255 255 255 / 22%);
+  --glass-blur: blur(28px) saturate(170%) brightness(1.06);
+  --elev: 0 0 0 1px rgb(255 255 255 / 5%) inset, 0 1px 0 rgb(255 255 255 / 9%) inset, 0 1px 1px rgb(0 0 0 / 45%), 0 6px 16px rgb(0 0 0 / 28%), 0 24px 60px rgb(0 0 0 / 22%);
+  --spring: cubic-bezier(.22, 1.18, .36, 1);
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --sidebar: 236px;
+  --sans: "Mona Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --mono: "Commit Mono", ui-monospace, Menlo, monospace;
+  font: 15px/1.5 var(--sans);
+  letter-spacing: -.005em;
+  -webkit-font-smoothing: antialiased;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f5f5f7;
+  --card: #fff;
+  --card-hi: #fff;
+  --fill: rgb(0 0 0 / 4%);
+  --fill-2: rgb(0 0 0 / 7%);
+  --line: rgb(0 0 0 / 8%);
+  --text: #1d1d1f;
+  --text-2: #6e6e73;
+  --text-3: #86868b;
+  --blue: #0071e3;
+  --cyan: #0071a4;
+  --green: #248a3d;
+  --red: #d70015;
+  --amber: #b25000;
+  --glass-fill: rgb(255 255 255 / 60%);
+  --glass-rim: rgb(255 255 255 / 95%);
+  --glass-blur: blur(28px) saturate(180%);
+  --elev: 0 0 0 1px rgb(0 0 0 / 5%), 0 1px 2px rgb(0 0 0 / 6%), 0 10px 30px rgb(0 0 0 / 6%);
+}
+
+/* ---------- Base and studio light ---------- */
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+body {
+  margin: 0; min-width: 320px; color: var(--text);
+  background:
+    radial-gradient(in oklch 80rem 42rem at 55% -14rem, oklch(62% .13 245 / 32%), oklch(62% .13 245 / 0%) 72%),
+    radial-gradient(in oklch 46rem 30rem at 12% -6rem, oklch(72% .11 215 / 14%), oklch(72% .11 215 / 0%) 70%),
+    radial-gradient(in oklch 52rem 36rem at 100% 108%, oklch(70% .09 50 / 9%), oklch(70% .09 50 / 0%) 70%),
+    var(--bg);
+  background-attachment: fixed;
+}
+:root[data-theme="light"] body { background: radial-gradient(in oklch 80rem 42rem at 55% -14rem, oklch(90% .05 245 / 70%), oklch(90% .05 245 / 0%) 72%), var(--bg); background-attachment: fixed; }
+a { color: inherit; }
+button { font: inherit; color: inherit; }
+h1, h2, h3 { margin: 0; text-wrap: balance; letter-spacing: -.03em; }
+p { margin: 0; text-wrap: pretty; }
+small { display: block; color: var(--text-3); font-size: 12px; }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 10px; }
+::selection { background: color-mix(in srgb, var(--blue) 40%, transparent); }
+.skip-link { position: fixed; z-index: 40; top: -60px; left: 16px; padding: 10px 14px; border-radius: 999px; background: var(--blue); color: #fff; font-weight: 600; text-decoration: none; }
+.skip-link:focus { top: 16px; }
+.notice { display: flex; justify-content: center; gap: 8px; padding: 10px 20px; color: var(--text-2); font-size: 13px; text-align: center; }
+.notice::before { content: ""; width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; background: var(--amber); flex: none; }
+.notice strong { color: var(--text); font-weight: 600; }
+
+/* ---------- Glass (functional layer only) ---------- */
+
+.glass {
+  position: relative; isolation: isolate;
+  background-color: var(--glass-fill);
+  background-image: radial-gradient(200px circle at var(--mx, -400px) var(--my, -400px), rgb(255 255 255 / 9%), transparent 70%);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 6%), 0 1px 1px rgb(0 0 0 / 30%), 0 12px 36px rgb(0 0 0 / 38%);
+}
+.glass::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; padding: 1px; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(140px circle at var(--mx, -400px) var(--my, -400px), rgb(255 255 255 / 85%), transparent 70%),
+              linear-gradient(160deg, var(--glass-rim), transparent 32%, transparent 68%, color-mix(in srgb, var(--glass-rim) 55%, transparent));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+}
+:root[data-theme="light"] .glass { box-shadow: 0 1px 2px rgb(0 0 0 / 6%), 0 12px 32px rgb(0 0 0 / 10%); }
+.glow-spot { position: absolute; z-index: 0; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; pointer-events: none; }
+.glow-spot.core { background: radial-gradient(circle, rgb(255 255 255 / 70%), transparent 70%); animation: glow-core .45s var(--ease) forwards; }
+.glow-spot.bloom { background: radial-gradient(circle, rgb(150 210 255 / 28%), rgb(150 210 255 / 10%) 40%, transparent 70%); animation: glow-bloom .9s var(--ease) forwards; }
+@keyframes glow-core { to { transform: scale(9); opacity: 0; } }
+@keyframes glow-bloom { from { transform: scale(2); } to { transform: scale(70); opacity: 0; } }
+.flex { animation: gel .48s var(--spring); }
+@keyframes gel { 22% { transform: scale(1.035, .955); } 55% { transform: scale(.99, 1.015); } }
+
+/* ---------- Shell ---------- */
+
+.shell { display: grid; grid-template-columns: calc(var(--sidebar) + 24px) minmax(0, 1fr); transition: grid-template-columns .55s var(--spring); }
+.sidebar { position: sticky; top: 12px; align-self: start; display: flex; flex-direction: column; gap: 22px; height: calc(100vh - 64px); margin: 12px 0 12px 12px; padding: 18px 12px 14px; border-radius: 26px; overflow: hidden; }
+.brand { display: flex; align-items: center; gap: 12px; padding: 0 6px; }
+.brand-mark { position: relative; display: block; width: 34px; height: 34px; flex: none; border-radius: 10px; box-shadow: 0 4px 14px rgb(10 132 255 / 30%); }
+.brand-mark img { position: absolute; inset: 0; width: 100%; height: 100%; transition: opacity .45s var(--ease); }
+/* Apple-style appearance variants: the dark icon by default, the light icon in the light theme. */
+.brand-mark .icon-light { opacity: 0; }
+:root[data-theme="light"] .brand-mark .icon-light { opacity: 1; }
+:root[data-theme="light"] .brand-mark .icon-dark { opacity: 0; }
+.brand-text { min-width: 0; white-space: nowrap; }
+.brand-text strong { display: block; font-size: 17px; font-weight: 650; letter-spacing: -.02em; }
+.icon-button { display: grid; place-items: center; width: 32px; height: 32px; flex: none; padding: 0; border: 0; border-radius: 999px; background: transparent; color: var(--text-2); cursor: pointer; transition: background .2s, color .2s, transform .18s var(--ease); }
+.icon-button:hover { background: var(--fill-2); color: var(--text); }
+.icon-button:active { transform: scale(.92); }
+.icon-button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+.icon-button svg .fill { fill: currentColor; stroke: none; }
+.sidebar-toggle { margin-left: auto; }
+.nav { position: relative; display: grid; gap: 2px; }
+.nav a, .side-link { position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 0 12px; border-radius: 14px; color: var(--text-2); font-size: 14px; font-weight: 500; text-decoration: none; white-space: nowrap; transition: color .2s; }
+.nav a:hover, .side-link:hover { color: var(--text); }
+.nav a.active { color: var(--text); }
+.nav a.active svg { color: var(--cyan); }
+.nav svg, .side-link svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.nav-thumb { position: absolute; z-index: 0; left: 0; right: 0; top: 0; height: 40px; border-radius: 14px; background: var(--fill-2); box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%); transition: transform .55s var(--spring); }
+.side-link { margin-top: auto; border-top: 1px solid var(--line); border-radius: 0 0 14px 14px; padding-top: 12px; min-height: 52px; }
+.shell.collapsed { grid-template-columns: 96px minmax(0, 1fr); }
+.collapsed .brand { flex-direction: column; padding: 0; }
+.collapsed .sidebar-toggle { margin: 0; }
+.collapsed .brand-text, .collapsed .nav span, .collapsed .side-link span { display: none; }
+.collapsed .nav a, .collapsed .side-link { justify-content: center; padding: 0; }
+
+.page { min-width: 0; }
+.topbar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 32px 16px 28px; }
+.topbar::before { content: ""; position: absolute; inset: 0 0 -28px; z-index: -1; pointer-events: none; background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 85%, transparent), transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); -webkit-mask: linear-gradient(180deg, #000 55%, transparent); mask: linear-gradient(180deg, #000 55%, transparent); }
+.topbar-title strong { display: block; font-size: 17px; font-weight: 650; letter-spacing: -.02em; transition: opacity .25s; }
+.topbar-actions { display: flex; gap: 10px; }
+.capsule { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 4px; border-radius: 999px; overflow: hidden; }
+.status { padding: 0 16px 0 14px; font-size: 13px; color: var(--text-2); }
+.status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--amber); }
+.status.ready .dot { background: var(--green); }
+
+main { max-width: 1180px; margin: 0 auto; padding: 24px 32px 96px; }
+.section { padding-top: 88px; }
+.section:first-child { padding-top: 32px; }
+.eyebrow { margin-bottom: 10px; color: var(--cyan); font-size: 14px; font-weight: 600; }
+.section-head { max-width: 720px; margin-bottom: 28px; }
+.section-head h2 { font-size: 40px; font-weight: 650; line-height: 1.08; }
+.section-head p:last-child:not(.eyebrow) { margin-top: 12px; color: var(--text-2); font-size: 17px; }
+
+/* ---------- Cards and their light ---------- */
+
+.card {
+  position: relative; isolation: isolate; border-radius: 26px;
+  background: linear-gradient(in oklch 180deg, var(--card-hi), var(--card) 46%);
+  box-shadow: var(--elev);
+}
+.card::after { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .35s var(--ease); background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgb(255 255 255 / 6%), transparent 60%); }
+.card::before { content: ""; position: absolute; inset: 0; z-index: 3; padding: 1px; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .35s var(--ease); background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgb(200 230 255 / 55%), transparent 65%); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+:root[data-theme="light"] .card::before { background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgb(0 113 227 / 40%), transparent 65%); }
+.card.lit::before, .card.lit::after { opacity: 1; }
+
+/* ---------- Motion ---------- */
+
+.reveal { opacity: 0; transform: translateY(18px) scale(.985); filter: blur(6px); }
+.reveal.in { opacity: 1; transform: none; filter: none; transition: opacity .7s var(--ease), transform .9s var(--spring), filter .7s var(--ease); transition-delay: var(--delay, 0ms); }
+.words span { display: inline-block; white-space: pre; opacity: 0; filter: blur(10px); transform: translateY(10px); }
+.words.in span { opacity: 1; filter: none; transform: none; transition: opacity .6s var(--ease), filter .6s var(--ease), transform .8s var(--spring); transition-delay: calc(var(--i) * 40ms); }
+.bars.in i { animation: bar-grow .7s var(--spring) both; animation-delay: calc(var(--i) * 28ms); }
+@keyframes bar-grow { from { transform: scaleY(0); } }
+
+.motion-off *, .motion-off *::before, .motion-off *::after { transition: none !important; animation: none !important; }
+.motion-off .reveal, .motion-off .words span { opacity: 1; transform: none; filter: none; }
+
+/* ---------- Adaptive layout ---------- */
+
+@media (max-width: 880px) {
+  .shell, .shell.collapsed { display: block; }
+  .sidebar { position: static; height: auto; margin: 12px; }
+  .nav { display: flex; overflow-x: auto; } .nav-thumb { display: none; } .nav a.active { background: var(--fill-2); }
+  .side-link { display: none; }
+  .section-head h2 { font-size: 30px; }
+  main { padding: 12px 20px 72px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .reveal, .words span { opacity: 1; transform: none; filter: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass { background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (prefers-contrast: more) {
+  :root { --line: rgb(255 255 255 / 24%); --text-2: #c7c7cc; --text-3: #a1a1a6; }
+}
+
+/* Text for screen readers only. */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+
+/* Appearance change (see shell.js): the old look dissolves into the new one —
+ * a soft crossfade with a hint of blur, no wipes or edges. */
+.theme-switching *, .theme-switching *::before, .theme-switching *::after { transition: none !important; }
+::view-transition-group(root) { animation-duration: .5s; animation-timing-function: cubic-bezier(.4, 0, .2, 1); }
+::view-transition-old(root) { animation: theme-out .5s cubic-bezier(.4, 0, .2, 1) both; }
+::view-transition-new(root) { animation: theme-in .5s cubic-bezier(.4, 0, .2, 1) both; }
+@keyframes theme-out { to { opacity: 0; filter: blur(3px) saturate(1.1); } }
+@keyframes theme-in { from { opacity: 0; } }
+
+/* ---------- Glass buttons: lifted off the page by real shadows ---------- */
+
+/* Floating glass shadows, one scale per theme. --float is the resting lift;
+ * --float-over is the same light, deeper, while content scrolls beneath. */
+:root {
+  --float-edge: inset 0 1px 0 rgb(255 255 255 / 12%), inset 0 -1px 0 rgb(0 0 0 / 22%), 0 0 0 .5px rgb(255 255 255 / 7%);
+  --float: var(--float-edge), 0 2px 4px rgb(0 0 0 / 55%), 0 10px 24px rgb(0 0 0 / 50%), 0 26px 56px rgb(0 0 0 / 55%);
+  --float-over: var(--float-edge), 0 3px 6px rgb(0 0 0 / 65%), 0 14px 32px rgb(0 0 0 / 60%), 0 34px 72px rgb(0 0 0 / 65%);
+}
+:root[data-theme="light"] {
+  --float-edge: inset 0 1px 0 rgb(255 255 255 / 95%), inset 0 -1px 0 rgb(0 0 0 / 5%), 0 0 0 .5px rgb(0 0 0 / 8%);
+  --float: var(--float-edge), 0 1px 2px rgb(0 0 0 / 10%), 0 6px 16px rgb(0 0 0 / 11%), 0 18px 44px rgb(0 0 0 / 14%);
+  --float-over: var(--float-edge), 0 2px 4px rgb(0 0 0 / 12%), 0 10px 24px rgb(0 0 0 / 15%), 0 26px 60px rgb(0 0 0 / 20%);
+}
+.glass, .capsule, :root[data-theme="light"] .glass, :root[data-theme="light"] .capsule { box-shadow: var(--float); }
+.topbar.over .capsule, :root[data-theme="light"] .topbar.over .capsule { box-shadow: var(--float-over); }
+.glass, .capsule { transition: box-shadow .35s var(--ease); }
+/* The selected option inside a group is a small glass lens of its own. */
+.nav-thumb, .currency-button.active, .timeframe-button.active, .report-tab.active, .trade[aria-selected="true"] {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 16%), 0 1px 2px rgb(0 0 0 / 35%), 0 4px 12px rgb(0 0 0 / 28%);
+}
+:root[data-theme="light"] .nav-thumb, :root[data-theme="light"] .currency-button.active, :root[data-theme="light"] .timeframe-button.active, :root[data-theme="light"] .report-tab.active, :root[data-theme="light"] .trade[aria-selected="true"] {
+  background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 8%), 0 4px 12px rgb(0 0 0 / 8%);
+}
+/* Buttons lift on hover and settle when pressed. */
+.icon-button:hover, .text-capsule:hover { box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%), 0 2px 8px rgb(0 0 0 / 30%); }
+:root[data-theme="light"] .icon-button:hover, :root[data-theme="light"] .text-capsule:hover { background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 8%), 0 3px 10px rgb(0 0 0 / 8%); }
+.icon-button:active, .text-capsule:active { box-shadow: none; }
+.custom-timeframe button, .verdict-chip { box-shadow: 0 1px 1px rgb(0 0 0 / 25%), 0 4px 12px color-mix(in srgb, var(--blue) 35%, transparent); }
+
+/* Scroll edge effect, Apple-style: invisible at rest, so the ambient light runs
+ * unbroken behind the toolbar; it fades in only while content is underneath. */
+.topbar::before { opacity: 0; transition: opacity .35s var(--ease); }
+.topbar.over::before { opacity: 1; }
+
+/* Dark glass separates from black by its rim, as Apple's dark materials do. */
+:root:not([data-theme="light"]) { --float-edge: inset 0 1px 0 rgb(255 255 255 / 16%), inset 0 -1px 0 rgb(0 0 0 / 30%), 0 0 0 .5px rgb(255 255 255 / 12%); }

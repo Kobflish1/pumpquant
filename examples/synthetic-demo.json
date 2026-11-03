@@ -1,0 +1,111 @@
+{
+  "bars": 1080,
+  "candidate_count": 16,
+  "fixed_notional_outcome_diagnostics": {
+    "excess_kurtosis": 4.272667913164322,
+    "hit_rate": 0.48936170212765956,
+    "mean_return": 0.046056638842898394,
+    "observations": 47,
+    "profit_factor": 1.6570734624395143,
+    "sharpe": 0.17127789970496737,
+    "skewness": -0.7238008129977054,
+    "sortino": 0.2744661250487405,
+    "volatility": 0.26890006779761244
+  },
+  "folds": [
+    {
+      "number": 0,
+      "selected": {
+        "entry_buy_imbalance": 0.0,
+        "entry_momentum": 0.07,
+        "exit_momentum": -0.03,
+        "max_age_seconds": 30.0,
+        "max_holding_bars": 8,
+        "min_age_seconds": 2.0,
+        "min_liquidity_quote": 0.0,
+        "min_trade_count": 2,
+        "momentum_lookback": 2,
+        "stop_loss": 0.1,
+        "take_profit": 0.3,
+        "trailing_stop": 0.14,
+        "volume_lookback": 3
+      },
+      "test_outcome_diagnostics": {
+        "excess_kurtosis": 6.609109349931172,
+        "hit_rate": 0.2857142857142857,
+        "mean_return": -0.09059420059896033,
+        "observations": 14,
+        "profit_factor": 0.3539716541397932,
+        "sharpe": -0.29297233722819277,
+        "skewness": -2.0129517171297104,
+        "sortino": -0.3131490961063399,
+        "volatility": 0.309224418441928
+      },
+      "train_position_outcomes": 42
+    },
+    {
+      "number": 1,
+      "selected": {
+        "entry_buy_imbalance": 0.25,
+        "entry_momentum": 0.03,
+        "exit_momentum": -0.03,
+        "max_age_seconds": 30.0,
+        "max_holding_bars": 8,
+        "min_age_seconds": 2.0,
+        "min_liquidity_quote": 0.0,
+        "min_trade_count": 2,
+        "momentum_lookback": 2,
+        "stop_loss": 0.1,
+        "take_profit": 0.3,
+        "trailing_stop": 0.14,
+        "volume_lookback": 3
+      },
+      "test_outcome_diagnostics": {
+        "excess_kurtosis": -1.168894117528903,
+        "hit_rate": 0.75,
+        "mean_return": 0.1671044110285849,
+        "observations": 16,
+        "profit_factor": 6.658476072718164,
+        "sharpe": 0.723001366698114,
+        "skewness": 0.17855278469636487,
+        "sortino": 2.726561075707464,
+        "volatility": 0.2311259960568769
+      },
+      "train_position_outcomes": 59
+    },
+    {
+      "number": 2,
+      "selected": {
+        "entry_buy_imbalance": 0.25,
+        "entry_momentum": 0.03,
+        "exit_momentum": -0.03,
+        "max_age_seconds": 30.0,
+        "max_holding_bars": 8,
+        "min_age_seconds": 2.0,
+        "min_liquidity_quote": 0.0,
+        "min_trade_count": 2,
+        "momentum_lookback": 2,
+        "stop_loss": 0.1,
+        "take_profit": 0.3,
+        "trailing_stop": 0.14,
+        "volume_lookback": 3
+      },
+      "test_outcome_diagnostics": {
+        "excess_kurtosis": 1.3222506231618907,
+        "hit_rate": 0.4117647058823529,
+        "mean_return": 0.04466530926731241,
+        "observations": 17,
+        "profit_factor": 1.8843215249159444,
+        "sharpe": 0.20153502884719218,
+        "skewness": 1.5857188773514086,
+        "sortino": 0.6084284339719721,
+        "volatility": 0.2216255383632516
+      },
+      "train_position_outcomes": 75
+    }
+  ],
+  "notice": "synthetic smoke test only; these metrics are not market evidence",
+  "statistics_warning": "PSR/DSR are retained internally as implementation diagnostics but are not valid edge evidence until computed on a calendar-time portfolio series with clustered inference",
+  "tokens": 36,
+  "trial_count": 48
+}

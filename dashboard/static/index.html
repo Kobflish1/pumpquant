@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="description" content="PumpQuant: does a trading rule hold up on data it has never seen?" />
+    <title>PumpQuant</title>
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" media="(prefers-color-scheme: light)" />
+    <link rel="icon" href="/static/favicon-dark.svg" type="image/svg+xml" media="(prefers-color-scheme: dark)" />
+    <link rel="stylesheet" href="/static/design.css" />
+    <link rel="stylesheet" href="/static/overview.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#answer">Skip to the result</a>
+    <div class="notice" role="status"><strong>Demo mode</strong> · Simulated data · Not connected to any market or wallet</div>
+
+    <div class="shell" id="shell">
+      <aside class="sidebar glass" aria-label="Sections">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"><img class="icon-light" src="/static/favicon.svg" alt="" width="34" height="34" /><img class="icon-dark" src="/static/favicon-dark.svg" alt="" width="34" height="34" /></span>
+          <span class="brand-text"><small>Trading research</small><strong>PumpQuant</strong></span>
+          <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true" title="Collapse sidebar">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="3.5" /><path d="M9.5 4.5v15" /></svg>
+          </button>
+        </div>
+        <nav class="nav" aria-label="Page sections">
+          <a href="#answer" class="active"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M8.5 12.2l2.4 2.4 4.6-4.8" /></svg><span>The answer</span></a>
+          <a href="#periods"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="4.5" height="14" rx="1.5" /><rect x="9.75" y="5" width="4.5" height="14" rx="1.5" /><rect x="16" y="5" width="4.5" height="14" rx="1.5" /></svg><span>Test periods</span></a>
+          <a href="#method"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M4 12h16M4 17h7" /><circle cx="17" cy="7" r="2" /><circle cx="14" cy="17" r="2" /></svg><span>How it’s tested</span></a>
+          <a href="#trades"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17l5-5 4 4 7-8" /><path d="M15 8h5v5" /></svg><span>Trades</span></a>
+          <a href="#limits"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l7 3v5.5c0 4.2-3 7.4-7 8.5-4-1.1-7-4.3-7-8.5V6.5z" /><path d="M12 9v4M12 16h.01" /></svg><span>Limits</span></a>
+        </nav>
+        <a class="side-link" href="/static/terminal.html"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="3" /><path d="M7.5 10l2.5 2-2.5 2M12 14h4" /></svg><span>Full research terminal</span></a>
+      </aside>
+
+      <div class="page">
+        <header class="topbar">
+          <div class="topbar-title"><small>PumpQuant</small><strong id="topbar-title">The answer</strong></div>
+          <div class="topbar-actions">
+            <span class="capsule glass status" id="status"><i class="dot"></i><span id="status-label">Loading run…</span></span>
+            <span class="capsule glass"><button class="icon-button" id="theme-toggle" type="button" aria-label="Switch appearance" title="Switch appearance"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5" /><path d="M12 4.5a7.5 7.5 0 0 1 0 15z" class="fill" /></svg></button></span>
+          </div>
+        </header>
+
+        <main>
+          <section id="answer" class="section answer" aria-labelledby="question">
+            <p class="eyebrow">Demo run · simulated data</p>
+            <h1 id="question">Does a trading rule hold up on data it has never seen?</h1>
+            <p class="verdict" id="verdict"><span class="verdict-chip" id="verdict-chip">…</span><span id="verdict-text">Reading the run…</span></p>
+            <p class="lede" id="lede"></p>
+            <div class="stats" id="stats"></div>
+          </section>
+
+          <section id="periods" class="section" aria-labelledby="periods-title">
+            <header class="section-head">
+              <p class="eyebrow">Test periods</p>
+              <h2 id="periods-title">Three tests, each on later data</h2>
+              <p>Each period tests the best version of the rule on tokens that launched after the ones it learned from. Select a period to see its trades.</p>
+            </header>
+            <div class="periods" id="period-cards" role="radiogroup" aria-label="Test periods"></div>
+          </section>
+
+          <section id="method" class="section" aria-labelledby="method-title">
+            <header class="section-head">
+              <p class="eyebrow">How it’s tested</p>
+              <h2 id="method-title">Learn from the past, test on the future</h2>
+              <p>The same four steps repeat, moving forward in time. A token is never split across the line, so a test can’t learn a token’s later life, and every period counts fees, failed orders and positions still open at the end.</p>
+            </header>
+            <div class="method card">
+              <ol class="steps">
+                <li><b>1</b><span><strong>Try 16 versions</strong> of the momentum rule on all earlier tokens.</span></li>
+                <li><b>2</b><span><strong>Keep the best one,</strong> chosen only from those earlier results.</span></li>
+                <li><b>3</b><span><strong>Test it on the next 6 tokens,</strong> which it has never seen, with real delays and costs.</span></li>
+                <li><b>4</b><span><strong>Move forward</strong> and repeat for the next period.</span></li>
+              </ol>
+              <svg class="timeline" id="timeline" viewBox="0 0 640 210" role="img" aria-label="Diagram: three periods. In each, the rule learns on earlier tokens, then is tested on the next block of later tokens."></svg>
+              <p class="figure-note">Drawn to scale from this demo run: 36 simulated tokens in launch order.</p>
+            </div>
+          </section>
+
+          <section id="trades" class="section" aria-labelledby="trades-title">
+            <header class="section-head">
+              <p class="eyebrow" id="trades-eyebrow">Trades</p>
+              <h2 id="trades-title">Every trade, replayed</h2>
+              <p id="trades-summary">Select a trade to replay it on the chart.</p>
+            </header>
+            <div class="replay">
+              <div class="card trade-list" id="trade-list" role="listbox" aria-label="Trades in the selected period"></div>
+              <div class="card chart-card">
+                <div class="chart-head">
+                  <div><small id="chart-kicker">Trade replay</small><strong id="chart-title">—</strong></div>
+                  <span class="result" id="chart-result">—</span>
+                </div>
+                <div class="chart" id="chart" aria-label="Price chart of the selected trade with signal, buy and sell markers"></div>
+                <p class="story" id="chart-story"></p>
+                <div class="legend"><span><i class="signal"></i>Signal</span><span><i class="buy"></i>Buy</span><span><i class="sell"></i>Sell</span><span class="attribution">Simulated data · Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer">TradingView</a></span></div>
+              </div>
+            </div>
+          </section>
+
+          <section id="limits" class="section" aria-labelledby="limits-title">
+            <header class="section-head">
+              <p class="eyebrow">Limits</p>
+              <h2 id="limits-title">What this demo shows, and what it doesn’t</h2>
+            </header>
+            <div class="limits">
+              <div class="card"><h3>It shows</h3><ul>
+                <li>The full method running end to end: generate data, search, test, replay.</li>
+                <li>Every test uses only data from after the period it learned on.</li>
+                <li>Fees, failed orders and unfinished positions are counted, not dropped.</li>
+              </ul></div>
+              <div class="card muted"><h3>It doesn’t show</h3><ul>
+                <li>Real market data. Every price here is simulated.</li>
+                <li>That the rule makes money. Three simulated tests are far too few to say.</li>
+                <li>Live trading. Nothing is connected to a market or a wallet.</li>
+              </ul></div>
+            </div>
+            <a class="card next-card" href="/static/terminal.html">
+              <span><strong>Full research terminal</strong><small>Token explorer, capital simulation, validation checks and the activity log. These need real research data, so they’re empty in the demo.</small></span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+            </a>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <script src="/static/vendor/lightweight-charts.standalone.production.js"></script>
+    <script type="module" src="/static/app.js"></script>
+  </body>
+</html>

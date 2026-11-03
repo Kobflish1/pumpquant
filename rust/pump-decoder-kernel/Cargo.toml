@@ -1,0 +1,21 @@
+[package]
+name = "pump-decoder-kernel"
+version = "0.1.0"
+edition = "2021"
+description = "Strict, dependency-free Solana legacy/v0 transaction wire decoder"
+license = "MIT"
+publish = false
+
+[lib]
+name = "pump_decoder_kernel"
+path = "src/lib.rs"
+
+[[bin]]
+name = "pump-decoder-kernel"
+path = "src/main.rs"
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+panic = "abort"
+strip = "symbols"

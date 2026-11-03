@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "repository": "https://github.com/pump-fun/pump-public-docs",
+  "commit": "1b822158844a60ca577df6ca122211b595a1a578",
+  "files": [
+    {
+      "path": "idl/pump.json",
+      "program_id": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+      "byte_count": 169632,
+      "sha256": "b90bc471327f671449271d5d1d42354d1fae6f5a06502f5834459a3108138e49"
+    },
+    {
+      "path": "idl/pump_amm.json",
+      "program_id": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
+      "byte_count": 138750,
+      "sha256": "cd5c58a5dded23632aedb993b08cc0d2ba91bda2bb084560913464274d3bee50"
+    }
+  ],
+  "lifecycle_events": [
+    {
+      "program": "pump",
+      "name": "CreateEvent",
+      "discriminator": [27, 114, 169, 77, 222, 235, 99, 118],
+      "fields": [
+        ["name", "string"],
+        ["symbol", "string"],
+        ["uri", "string"],
+        ["mint", "pubkey"],
+        ["bonding_curve", "pubkey"],
+        ["user", "pubkey"],
+        ["creator", "pubkey"],
+        ["timestamp", "i64"],
+        ["virtual_token_reserves", "u64"],
+        ["virtual_sol_reserves", "u64"],
+        ["real_token_reserves", "u64"],
+        ["token_total_supply", "u64"],
+        ["token_program", "pubkey"],
+        ["is_mayhem_mode", "bool"],
+        ["is_cashback_enabled", "bool"],
+        ["quote_mint", "pubkey"],
+        ["virtual_quote_reserves", "u64"]
+      ]
+    },
+    {
+      "program": "pump",
+      "name": "CompleteEvent",
+      "discriminator": [95, 114, 97, 156, 212, 46, 152, 8],
+      "fields": [
+        ["user", "pubkey"],
+        ["mint", "pubkey"],
+        ["bonding_curve", "pubkey"],
+        ["timestamp", "i64"],
+        ["quote_mint", "pubkey"]
+      ]
+    },
+    {
+      "program": "pump",
+      "name": "CompletePumpAmmMigrationEvent",
+      "discriminator": [189, 233, 93, 185, 92, 148, 234, 148],
+      "fields": [
+        ["user", "pubkey"],
+        ["mint", "pubkey"],
+        ["mint_amount", "u64"],
+        ["sol_amount", "u64"],
+        ["pool_migration_fee", "u64"],
+        ["bonding_curve", "pubkey"],
+        ["timestamp", "i64"],
+        ["pool", "pubkey"],
+        ["quote_mint", "pubkey"]
+      ]
+    },
+    {
+      "program": "pump_amm",
+      "name": "CreatePoolEvent",
+      "discriminator": [177, 49, 12, 210, 160, 118, 167, 116],
+      "fields": [
+        ["timestamp", "i64"],
+        ["index", "u16"],
+        ["creator", "pubkey"],
+        ["base_mint", "pubkey"],
+        ["quote_mint", "pubkey"],
+        ["base_mint_decimals", "u8"],
+        ["quote_mint_decimals", "u8"],
+        ["base_amount_in", "u64"],
+        ["quote_amount_in", "u64"],
+        ["pool_base_amount", "u64"],
+        ["pool_quote_amount", "u64"],
+        ["minimum_liquidity", "u64"],
+        ["initial_liquidity", "u64"],
+        ["lp_token_amount_out", "u64"],
+        ["pool_bump", "u8"],
+        ["pool", "pubkey"],
+        ["lp_mint", "pubkey"],
+        ["user_base_token_account", "pubkey"],
+        ["user_quote_token_account", "pubkey"],
+        ["coin_creator", "pubkey"],
+        ["is_mayhem_mode", "bool"]
+      ]
+    }
+  ],
+  "state_event_scope": {
+    "authority": "all non-trade, non-lifecycle events in the two pinned IDLs",
+    "typed_high_value": [
+      {
+        "program": "pump",
+        "events": [
+          "SetParamsEvent",
+          "UpdateMayhemVirtualParamsEvent",
+          "SetCreatorEvent",
+          "MigrateBondingCurveCreatorEvent",
+          "DistributeCreatorFeesEvent",
+          "CollectCreatorFeeEvent",
+          "ReservedFeeRecipientsEvent",
+          "UpdateGlobalAuthorityEvent"
+        ]
+      },
+      {
+        "program": "pump_amm",
+        "events": [
+          "DepositEvent",
+          "WithdrawEvent",
+          "CreateConfigEvent",
+          "UpdateFeeConfigEvent",
+          "DisableEvent",
+          "UpdateAdminEvent",
+          "MigratePoolCoinCreatorEvent",
+          "SetBondingCurveCoinCreatorEvent",
+          "SetMetaplexCoinCreatorEvent",
+          "CollectCoinCreatorFeeEvent",
+          "ReservedFeeRecipientsEvent",
+          "AdminSetCoinCreatorEvent"
+        ]
+      }
+    ],
+    "raw_idl_sha256": {
+      "pump": "b90bc471327f671449271d5d1d42354d1fae6f5a06502f5834459a3108138e49",
+      "pump_amm": "cd5c58a5dded23632aedb993b08cc0d2ba91bda2bb084560913464274d3bee50"
+    }
+  }
+}
