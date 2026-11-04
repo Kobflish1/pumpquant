@@ -1,11 +1,9 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/icon-dark.png">
-    <img src="assets/icon-light.png" width="88" alt="PumpQuant icon">
+    <source media="(prefers-color-scheme: light)" srcset="assets/lockup-light.png">
+    <img src="assets/lockup.png" width="469" alt="PumpQuant">
   </picture>
 </p>
-
-<h1 align="center">PumpQuant</h1>
 
 <h3 align="center">Backtesting engine for Pump.fun, Solana's token-launch market</h3>
 
@@ -14,7 +12,7 @@
   <a href="#how-it-works"><b>How it works</b></a> ·
   <a href="#background"><b>Background</b></a> ·
   <a href="docs/PARITY_CASE_STUDY.md"><b>Case study</b></a> ·
-  <a href="ROADMAP.md"><b>Roadmap</b></a>
+  <a href="#roadmap"><b>Roadmap</b></a>
 </p>
 
 <p align="center">
@@ -55,32 +53,6 @@ It is for developers and researchers who build trading strategies for Pump.fun a
 
 **Built with** Python 3.12+ and Rust. DuckDB and PyArrow handle the market data, NumPy and the arch library the statistics, and two Rust crates decode transactions and run the parallel strategy search. The dashboard is a small local web app, served by Python's standard library and drawn with TradingView's Lightweight Charts.
 
-## The dashboard
-
-`pumpquant preview` opens the dashboard on a demo run. It leads with the answer, then compares the test periods, shows how each one was tested, and replays any trade:
-
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: light)" srcset="assets/scene-answer-light.png">
-    <img src="assets/scene-answer.png" width="410" alt="The dashboard's answer to whether a momentum rule holds up on data it has never seen: profitable in 2 of 3 test periods, 47 outcomes counted.">
-  </picture>
-  <picture>
-    <source media="(prefers-color-scheme: light)" srcset="assets/scene-periods-light.png">
-    <img src="assets/scene-periods.png" width="410" alt="The combined result, +0.217 SOL across all test periods, beside test period 1 at -0.127 SOL and test period 2 at +0.268 SOL.">
-  </picture>
-  <picture>
-    <source media="(prefers-color-scheme: light)" srcset="assets/scene-replay-light.png">
-    <img src="assets/scene-replay.png" width="410" alt="A replayed take-profit trade on token #20: the signal, a buy one second later and a sell five seconds after that, +0.037 SOL after fees.">
-  </picture>
-  <picture>
-    <source media="(prefers-color-scheme: light)" srcset="assets/scene-method-light.png">
-    <img src="assets/scene-method.png" width="410" alt="How each period is tested, drawn to scale: learn on the earlier tokens (18, then 24, then 30), then test on the next six.">
-  </picture>
-</p>
-
-> [!NOTE]
-> The demo runs on generated data: 36 simulated tokens, not market prices. The generator plants a weak momentum signal so the search has something to find. The demo shows how the method works, not whether a strategy makes money.
-
 ## Quick start
 
 PumpQuant needs Python 3.12 or later. Install it with the data and research extras, then run the two examples and the dashboard:
@@ -120,6 +92,32 @@ print(f"0.1 SOL buys {buy.base_amount / 1e6:,.0f} tokens")
 
 It prints `0.1 SOL buys 3,529,605 tokens`. The second half lets someone else's 1 SOL buy land first, and the same 0.1 SOL then buys 6.3% fewer tokens. That is why every replay in PumpQuant carries its real delay. `pumpquant demo` prints the demo's full report as JSON, including the rule each test period selected.
 
+## The dashboard
+
+`pumpquant preview` opens the dashboard on a demo run. It leads with the answer, then compares the test periods, shows how each one was tested, and replays any trade:
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="assets/scene-answer-light.png">
+    <img src="assets/scene-answer.png" width="410" alt="The dashboard's answer to whether a momentum rule holds up on data it has never seen: profitable in 2 of 3 test periods, 47 outcomes counted.">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="assets/scene-periods-light.png">
+    <img src="assets/scene-periods.png" width="410" alt="The combined result, +0.217 SOL across all test periods, beside test period 1 at -0.127 SOL and test period 2 at +0.268 SOL.">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="assets/scene-replay-light.png">
+    <img src="assets/scene-replay.png" width="410" alt="A replayed take-profit trade on token #20: the signal, a buy one second later and a sell five seconds after that, +0.037 SOL after fees.">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="assets/scene-method-light.png">
+    <img src="assets/scene-method.png" width="410" alt="How each period is tested, drawn to scale: learn on the earlier tokens (18, then 24, then 30), then test on the next six.">
+  </picture>
+</p>
+
+> [!NOTE]
+> The demo runs on generated data: 36 simulated tokens, not market prices. The generator plants a weak momentum signal so the search has something to find. The demo shows how the method works, not whether a strategy makes money.
+
 ## How it works
 
 PumpQuant follows the path a trade idea takes, from raw chain data to a verdict. Each stage is its own package, drawn here in reading order:
@@ -157,7 +155,7 @@ examples/        the Quick start scripts and the recorded demo output
 scripts/         the Rust and Python decoder parity check
 schemas/         the pinned Pump program event layouts
 docs/            architecture, decisions, status, provenance and the case study
-ROADMAP.md       the work still ahead
+ROADMAP.md       what comes next
 ```
 
 Each module's original name is in [docs/MODULE-MAP.md](docs/MODULE-MAP.md).
@@ -191,6 +189,17 @@ A take-profit is a sell triggered when the price reaches its target. The price r
 
 </details>
 
+## History
+
+PumpQuant was built locally from 13 July 2026: first the data archives and the decoder, then the research engine, two live stages, the audit and the rebuild it led to. It was first published to GitHub on 4 November 2026, and the [project history](docs/HISTORY.md) dates the time before from file creation times and the project's own logs. The files created each day, by area:
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="assets/timeline-light.png">
+  <img src="assets/timeline.png" width="100%" alt="Stacked bar chart of files created per day in the local PumpQuant folder from 13 July to 4 August 2026, by area: data and decoding, model and execution, research and validation, and tests, docs and UI. Peaks on 15 and 16 July (archives sealed), 18 July (Rust decoder) and 28 July (new data source); live stage one on 26 July, stage two and the audit on 27 July.">
+</picture>
+
+<p align="center"><sub>The 883 files that survive in the local folder, by the day each was created. <a href="docs/HISTORY.md">The history</a> dates every phase and names its sources.</sub></p>
+
 ## Development
 
 One command runs every check: ruff, mypy in strict mode on 112 source files, the 508 Python tests, the two examples, the 16 Rust tests with warnings as errors, and a parity check of the Rust decoder against the Python one on 220 fixtures.
@@ -208,6 +217,27 @@ Its output on this repository:
 
 <p align="center"><sub>An excerpt of a real run on 4 November 2026; progress, compiler lines and the examples' output are left out. <a href="docs/STATUS.md">Status</a> lists every verified result, with exact versions.</sub></p>
 
+## Roadmap
+
+This is the first public release. [ROADMAP.md](ROADMAP.md) plans what follows in three steps: finish the release now, then build the product around the engine, then take tested strategies live and beyond Pump.fun.
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="assets/roadmap-light.png">
+  <img src="assets/roadmap.png" width="100%" alt="The roadmap, measured on 4 November 2026. Now: publish the CI workflow and tag v0.1.0; split the three modules over 1,500 lines and the 30 functions over 150 lines; raise test coverage from 77% (event_screen.py 32%, event_research.py 37%, bigquery/daily.py 31%, dashboard/server.py 56%) and remove four fork warnings; run clippy and add benchmarks; phone-width figures and visual polish. Next: desktop apps, a guided strategy builder, easy data import and plainer wording, with tested integrations. Later: live trading from a tested strategy, and other blockchains and launch platforms.">
+</picture>
+
+- [ ] Publish the CI workflow, which runs the `make check` targets on Python 3.12, 3.13 and 3.14
+- [ ] Tag `v0.1.0`, with a changelog, the wheel and the source archive
+- [ ] Split the three modules over 1,500 lines and the 30 functions over 150 lines, keeping every output byte-identical
+- [ ] Test the event screens end to end (32% and 37% covered) and the BigQuery execute path (31%)
+- [ ] Run clippy on both Rust crates and add reproducible benchmarks
+- [ ] Desktop apps for Apple silicon Macs and for Windows, as the main way to use PumpQuant
+- [ ] A guided strategy builder that creates and tests a strategy without code
+- [ ] Data import from common file formats, and official chain data in one step
+- [ ] Move a tested strategy to live trading in a few steps, with a live status view for each one
+
+The [full roadmap](ROADMAP.md) says what done looks like for every item. More will be added as the work goes on.
+
 ## Documentation
 
 - [History](docs/HISTORY.md): how the project was built, from the first files in July 2026 to this release
@@ -216,7 +246,7 @@ Its output on this repository:
 - [Case study](docs/PARITY_CASE_STUDY.md): the audit that led to the rebuild
 - [Status](docs/STATUS.md): what was verified for this release, its scope and its limits
 - [Provenance](docs/PROVENANCE.md): what changed in this release, third-party notices and licences
-- [Roadmap](ROADMAP.md): the work still ahead
+- [Roadmap](ROADMAP.md): what comes next
 
 ## License
 
