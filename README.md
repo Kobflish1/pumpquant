@@ -50,8 +50,6 @@ PumpQuant replays every [Pump.fun](https://pump.fun) trade with the latency, fee
     <source media="(prefers-color-scheme: light)" srcset="assets/scene-periods-light.png">
     <img src="assets/scene-periods.png" width="49%" alt="Test periods side by side: -0.127 SOL and +0.268 SOL, each with its trades as bars.">
   </picture>
-</p>
-<p align="center">
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="assets/scene-replay-light.png">
     <img src="assets/scene-replay.png" width="49%" alt="A replayed trade on token #19: signal, buy one second later, stop-loss sell, -0.024 SOL after fees.">
