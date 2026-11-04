@@ -1,23 +1,33 @@
+# Python and tool caches
 __pycache__/
 *.py[cod]
 .pytest_cache/
-.hypothesis/
 .venv/
 venv/
 *.egg-info/
 .ruff_cache/
 .mypy_cache/
+.coverage
 build/
 dist/
 **/target/
+.DS_Store
+
+# Secrets and keys: never commit these
 .env
 .env.*
-wallets/
-nodes/
 *.pem
 *.key
+*.p12
+wallets/
 *keypair*.json
+id.json
+*service-account*.json
+*credentials*.json
+secrets/
+
+# Local research data and run output
+nodes/
 artifacts/
 data/
 logs/
-.DS_Store

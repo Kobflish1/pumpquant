@@ -7,11 +7,11 @@ Checked on 4 November 2026 on macOS arm64, with Python 3.12.14, 3.13.15 and 3.14
 | Check | Result | What it establishes |
 | :-- | :-- | :-- |
 | `pumpquant demo`, seed 7 | 1,080 bars, 16 candidates, 48 fold trials, 3 folds, 47 test outcomes, byte-identical to `examples/synthetic-demo.json` (asserted by `tests/test_demo.py`) | The generate, feature, replay and search path runs and is deterministic |
-| Python tests | 506 passed on 3.12, on 3.13 and on 3.14 | Decoding, availability, exact math, replay, wallet validation, source adapters, the BigQuery coordinator and the read-only dashboard behave as specified on controlled fixtures |
+| Python tests | 508 passed on 3.12, on 3.13 and on 3.14 | Decoding, availability, exact math, replay, wallet validation, source adapters, the BigQuery coordinator and the read-only dashboard behave as specified on controlled fixtures |
 | Static checks | ruff clean; mypy `--strict` clean on 112 source files | Consistent style and fully typed code |
 | Rust | Both crates format-clean and built with warnings as errors; 11 decoder and 5 search-kernel tests passed | Parser and CLI error contracts; the search kernels build and pass their tests |
 | Python/Rust decoder parity | 16 valid, 4 targeted malformed or wrong-version, and 200 mutated or random-byte fixtures matched | The two decoders agree on the bounded wire contract |
-| Examples | `examples/periods.py` and `examples/quote.py` run and print the output shown in the README | The Quick start is real |
+| Examples | `examples/periods.py` and `examples/quote.py` run and print the output shown in the README, asserted byte for byte by `tests/test_examples.py` | The Quick start is real |
 | Installed wheel | Built with `uv build`, installed with `[data,research]` into a clean Python 3.12 environment, then `pumpquant preview` served the pages, scripts, fonts and API from the installed package | The dashboard does not depend on a source checkout |
 | Test coverage | 77% of statements, measured with pytest-cov | Where the remaining gaps are (below) |
 
@@ -31,7 +31,7 @@ pumpquant preview
 
 ## Python versions
 
-PumpQuant requires Python 3.12 or later. On 3.11 the suite was run too: 504 of 506 tests pass, and the two that fail differ only in the last digit of a floating-point sum. Python 3.12 made `sum()` of floats more accurate, so the recorded demo output, which is checked byte for byte, is the 3.12 result.
+PumpQuant requires Python 3.12 or later. On 3.11 the suite was run too: 506 of 508 tests pass, and the two that fail differ only in the last digit of a floating-point sum. Python 3.12 made `sum()` of floats more accurate, so the recorded demo output, which is checked byte for byte, is the 3.12 result.
 
 ## Scope
 
@@ -42,8 +42,9 @@ This is a research source snapshot with a reproducible demo on generated data. T
 - The largest modules with the least coverage are the event screens in `research/event_screen.py` and `research/event_research.py` (about a third of their statements run in tests) and the execute path of `acquisition/bigquery/daily.py`, which needs a billed BigQuery job; its validation and dry-run paths are tested.
 - Generated data cannot show a market edge. The dashboard labels it as simulated, shows fixed-notional outcomes, and leaves funded-portfolio views empty.
 - Provider-backed acquisition, chain submission, adaptive fee learning and live integrations were not exercised for this release.
+- The [roadmap](../ROADMAP.md) lists the work still ahead, with what done looks like for each item.
 - No billable or on-chain actions were taken. Installing public packages and a Python 3.11 build for the version check were the only network activity.
 
 ## Licence
 
-No licence has been chosen for this repository yet, so no rights to reuse it are granted. Existing crate metadata and third-party notices are kept as they were; [Provenance](PROVENANCE.md) lists them.
+PumpQuant is released under the [MIT License](../LICENSE). The bundled Lightweight Charts library (Apache-2.0) and the dashboard fonts (SIL Open Font License) keep their own licences; [Provenance](PROVENANCE.md) lists them with their notices.

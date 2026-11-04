@@ -26,12 +26,14 @@ A second pass after an independent review:
 - **Defects found on the way.** A search test patched a function the search no longer called, so it could not fail; it now patches the evaluation that resumption must skip. Many docstrings still pointed at the old flat module names. The replay chart labelled the demo's clock as times of day; it now shows time since the token's launch.
 - **Python 3.12+.** On 3.11, two tests differ in the last digit of a float sum, because 3.12 made `sum()` more accurate; the requirement now says so.
 - **Wording.** Docstrings were edited for plain words and UK spelling.
+- **Licence and dependencies.** The repository is now MIT-licensed. Four declared dependencies that no code imports were removed: Polars, orjson, websockets (with the `stream` extra that held only it) and Hypothesis.
+- **Examples under test.** `tests/test_examples.py` checks that both Quick start scripts print exactly what the README shows. `examples/quote.py` was shortened to the steps it needs.
 
 ## Licences and notices
 
-No repository-wide licence has been chosen. The Rust manifests already declare MIT for those crates, and that declaration is kept. It does not cover the rest of the repository. Redistribution rights for the complete package should be resolved before public release.
+PumpQuant is released under the [MIT License](../LICENSE), declared in `pyproject.toml` as `license = "MIT"`. The two Rust crates were already MIT, and keep that declaration in their manifests.
 
-The dashboard bundles Lightweight Charts 5.2.0 under Apache-2.0. Its distribution header is kept, the version-specific [LICENSE](../src/pumpquant/dashboard/static/vendor/LICENSE) and [NOTICE](../src/pumpquant/dashboard/static/vendor/NOTICE) files sit beside it, and the chart visibly credits TradingView. The dashboard fonts, Mona Sans and Commit Mono, are used under the SIL Open Font License; their licence files are in `src/pumpquant/dashboard/static/fonts/`.
+The MIT License covers PumpQuant's own code; the bundled third-party files keep their own licences. The dashboard bundles Lightweight Charts 5.2.0 under Apache-2.0. Its distribution header is kept, the version-specific [LICENSE](../src/pumpquant/dashboard/static/vendor/LICENSE) and [NOTICE](../src/pumpquant/dashboard/static/vendor/NOTICE) files sit beside it, and the chart visibly credits TradingView. The dashboard fonts, Mona Sans and Commit Mono, are used under the SIL Open Font License; their licence files are in `src/pumpquant/dashboard/static/fonts/`.
 
 The event schema lock identifies the upstream public protocol documentation revision and its content hashes. Source modules cite the upstream SDK or protocol definitions used for arithmetic and decoding. Those references record technical provenance; they do not imply endorsement or grant rights over an upstream project.
 
