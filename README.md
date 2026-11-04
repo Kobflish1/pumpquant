@@ -19,7 +19,7 @@
   <img src="https://img.shields.io/badge/Python-3.12%2B-0a84ff?style=flat-square&labelColor=1c1c1e" alt="Python 3.12+">
   <img src="https://img.shields.io/badge/Rust-decoder-64d2ff?style=flat-square&labelColor=1c1c1e" alt="Rust decoder">
   <img src="https://img.shields.io/badge/mypy-strict-30d158?style=flat-square&labelColor=1c1c1e" alt="mypy strict">
-  <img src="https://img.shields.io/badge/tests-508%20passing-30d158?style=flat-square&labelColor=1c1c1e" alt="508 tests passing">
+  <a href="https://github.com/Kobflish1/pumpquant/actions/workflows/checks.yml"><img src="https://img.shields.io/github/actions/workflow/status/Kobflish1/pumpquant/checks.yml?branch=main&style=flat-square&label=checks&labelColor=1c1c1e" alt="Checks status"></a>
   <img src="https://img.shields.io/badge/license-MIT-a1a1a6?style=flat-square&labelColor=1c1c1e" alt="MIT license">
 </p>
 
@@ -225,18 +225,18 @@ This is the first public release. [ROADMAP.md](ROADMAP.md) plans what follows in
 
 <picture>
   <source media="(prefers-color-scheme: light)" srcset="assets/roadmap-light.png">
-  <img src="assets/roadmap.png" width="100%" alt="The roadmap, measured on 4 November 2026. Now: publish the CI workflow and tag v0.1.0; split the three modules over 1,500 lines and the 30 functions over 150 lines; raise test coverage from 77% (event_screen.py 32%, event_research.py 37%, bigquery/daily.py 31%, dashboard/server.py 56%) and remove four fork warnings; run clippy and add benchmarks; phone-width figures and visual polish. Next: desktop apps, a guided strategy builder, easy data import and plainer wording, with tested integrations. Later: live trading from a tested strategy, and other blockchains and launch platforms.">
+  <img src="assets/roadmap.png" width="100%" alt="The roadmap, measured on 4 November 2026. Now: CI on GitHub Actions and the v0.1.0 release are done; next, split the three modules over 1,500 lines and the 30 functions over 150 lines; raise test coverage from 77% (event_screen.py 32%, event_research.py 37%, bigquery/daily.py 31%, dashboard/server.py 56%) and remove four fork warnings; run clippy and add benchmarks; phone-width figures and visual polish. Next: desktop apps, a guided strategy builder, easy data import and plainer wording, with tested integrations. Later: live trading from a tested strategy, and other blockchains and launch platforms.">
 </picture>
 
-- [ ] Publish the CI workflow, which runs the `make check` targets on Python 3.12, 3.13 and 3.14
-- [ ] Tag `v0.1.0`, with a changelog, the wheel and the source archive
-- [ ] Split the three modules over 1,500 lines and the 30 functions over 150 lines
-- [ ] Test the event screens end to end (32% and 37% covered) and the BigQuery execute path (31%)
-- [ ] Run clippy on both Rust crates and add reproducible benchmarks
-- [ ] Desktop apps for Apple silicon Macs and for Windows, as the main way to use PumpQuant
-- [ ] A guided strategy builder that creates and tests a strategy without code
-- [ ] Data import from common file formats, and official chain data in one step
-- [ ] Move a tested strategy to live trading in a few steps, with a live status view for each one
+- [x] CI on GitHub Actions, running the `make check` targets on Python 3.12, 3.13 and 3.14
+- [x] Release [`v0.1.0`](https://github.com/Kobflish1/pumpquant/releases/tag/v0.1.0), with the wheel and the source archive
+- [ ] Split the three modules over 1,500 lines and the 30 functions over 150 lines ([#1](https://github.com/Kobflish1/pumpquant/issues/1), [#2](https://github.com/Kobflish1/pumpquant/issues/2), [#3](https://github.com/Kobflish1/pumpquant/issues/3), [#4](https://github.com/Kobflish1/pumpquant/issues/4), [#5](https://github.com/Kobflish1/pumpquant/issues/5), [#6](https://github.com/Kobflish1/pumpquant/issues/6))
+- [ ] Test the event screens end to end (32% and 37% covered) and the BigQuery execute path (31%) ([#8](https://github.com/Kobflish1/pumpquant/issues/8), [#9](https://github.com/Kobflish1/pumpquant/issues/9))
+- [ ] Run clippy on both Rust crates and add reproducible benchmarks ([#12](https://github.com/Kobflish1/pumpquant/issues/12), [#13](https://github.com/Kobflish1/pumpquant/issues/13))
+- [ ] Desktop apps for Apple silicon Macs and for Windows, as the main way to use PumpQuant ([#16](https://github.com/Kobflish1/pumpquant/issues/16))
+- [ ] A guided strategy builder that creates and tests a strategy without code ([#17](https://github.com/Kobflish1/pumpquant/issues/17))
+- [ ] Data import from common file formats, and official chain data in one step ([#18](https://github.com/Kobflish1/pumpquant/issues/18))
+- [ ] Move a tested strategy to live trading in a few steps, with a live status view for each one ([#21](https://github.com/Kobflish1/pumpquant/issues/21))
 
 The [full roadmap](ROADMAP.md) says what done looks like for every item. More will be added as the work goes on.
 

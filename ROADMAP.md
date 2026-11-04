@@ -12,8 +12,12 @@ The plan runs in three steps:
 
 ### Release
 
-- **Publish the CI workflow.** `.github/workflows/checks.yml` runs the same targets as `make check` on Python 3.12, 3.13 and 3.14. It is not on GitHub yet, because pushing workflows needs a token with the workflow scope. Done when it has passed on GitHub and the badges link to its runs.
-- **Tag the first release.** `v0.1.0`, with a short changelog and the built wheel and source archive attached. Done when `pip install` from the release asset runs `pumpquant preview`, as the clean-environment wheel check already does locally.
+Shipped with this release:
+
+- **CI on GitHub Actions.** `.github/workflows/checks.yml` runs the same targets as `make check` on Python 3.12, 3.13 and 3.14, and the README badge links to its runs.
+- **The first release.** [`v0.1.0`](https://github.com/Kobflish1/pumpquant/releases/tag/v0.1.0), with the built wheel and source archive attached.
+
+Every item below has an [open issue](https://github.com/Kobflish1/pumpquant/issues).
 
 ### Code structure
 
