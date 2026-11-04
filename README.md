@@ -9,8 +9,8 @@
 
 <p align="center">
   <a href="#quick-start"><b>Quick start</b></a> ·
+  <a href="#how-it-works"><b>How it works</b></a> ·
   <a href="#background"><b>Background</b></a> ·
-  <a href="docs/ARCHITECTURE.md"><b>Architecture</b></a> ·
   <a href="docs/PARITY_CASE_STUDY.md"><b>Case study</b></a>
 </p>
 
@@ -32,14 +32,24 @@
 
 PumpQuant replays every [Pump.fun](https://pump.fun) trade with the latency, fees and failed transactions a live trader would have faced, and tests each strategy only on data it has never seen.
 
-- **Exact pricing**: integer quotes that match the Pump and PumpSwap programs, rounding included
-- **No look-ahead**: every feature is computed only from data that had arrived at decision time
-- **Realistic execution**: latency, retries, priority fees, failed transactions and shared capital
-- **Walk-forward search**: chronological train and test periods, with every trial logged
-- **Strict decoding**: Solana transactions and program events, with a Rust decoder checked against the Python one
-- **Dashboard**: a local, read-only view of every run, period and trade
+<table>
+  <tr>
+    <td width="50%" valign="top"><b>Exact pricing</b><br>Integer quotes that match the Pump and PumpSwap programs, rounding included.</td>
+    <td width="50%" valign="top"><b>No look-ahead</b><br>Every feature uses only data that had arrived when the decision was made.</td>
+  </tr>
+  <tr>
+    <td valign="top"><b>Realistic execution</b><br>Latency, retries, priority fees, failed transactions and shared capital.</td>
+    <td valign="top"><b>Walk-forward search</b><br>Chronological train and test periods, with every trial logged.</td>
+  </tr>
+  <tr>
+    <td valign="top"><b>Strict decoding</b><br>Solana transactions and program events, with a Rust decoder checked against the Python one.</td>
+    <td valign="top"><b>A dashboard for every run</b><br>A local, read-only view of each period and every trade.</td>
+  </tr>
+</table>
 
-<br>
+## The dashboard
+
+`pumpquant preview` opens the dashboard on a demo run. It leads with the answer, then lets you compare the test periods, see how each one was tested, and replay any trade.
 
 <p align="center">
   <picture>
@@ -59,16 +69,25 @@ PumpQuant replays every [Pump.fun](https://pump.fun) trade with the latency, fee
     <img src="assets/scene-method.png" width="49%" alt="The walk-forward method: learn on earlier tokens, then test on the next six, drawn to scale.">
   </picture>
 </p>
-<p align="center"><sub>The local dashboard, running on the bundled demo. Simulated data.</sub></p>
+
+> [!NOTE]
+> The demo runs on generated data: 36 simulated tokens, not market prices. It shows how the method works, not whether a strategy makes money.
 
 ## Quick start
 
 ```sh
 pip install -e '.[dev,data,research,archive]'
-pumpquant demo
+python examples/reproduce_demo.py
+python examples/periods.py
+pumpquant preview
 ```
 
-The demo generates 36 tokens, searches 16 versions of a momentum rule and tests each period's best version on the tokens that launched next:
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="assets/terminal-light.png">
+  <img src="assets/terminal.png" width="100%" alt="Terminal session: the demo summary (1,080 bars, 16 candidates, 3 folds, 47 out-of-sample outcomes), each period's result, and the dashboard starting on port 8765.">
+</picture>
+
+The demo generates 36 tokens, searches 16 versions of a momentum rule, and tests each period's best version on the tokens that launched next. `examples/periods.py` reads the same run from Python:
 
 ```python
 from pumpquant.demo import run_demo
@@ -76,37 +95,25 @@ from pumpquant.demo import run_demo
 run = run_demo(tokens=36, seed=7)
 for fold in run.report.folds:
     result = fold.test_backtest
-    print(f"period {fold.number + 1}: {result.position_outcomes} outcomes, {result.total_quote_pnl:+.3f} SOL")
+    pnl = result.total_quote_pnl
+    print(f"period {fold.number + 1}: {result.position_outcomes} outcomes, {pnl:+.3f} SOL")
 ```
 
-```text
-period 1: 14 outcomes, -0.127 SOL
-period 2: 16 outcomes, +0.268 SOL
-period 3: 17 outcomes, +0.076 SOL
-```
+`pumpquant demo` prints the full report as JSON, including the rule each period selected.
 
-To explore the same run in the dashboard:
+## How it works
 
-```sh
-pumpquant preview    # http://127.0.0.1:8765
-```
+PumpQuant follows the path a trade idea takes, from raw chain data to a verdict. Each stage is a package, and each hands the next a stricter guarantee.
 
-The demo data is generated. It shows how the method works, not whether a strategy makes money.
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="assets/architecture-light.png">
+  <img src="assets/architecture.png" width="100%" alt="The pipeline: acquisition, decoding, state and features, then pricing, execution, research and validation. Rust kernels sit beside decoding and research.">
+</picture>
 
-## Background
+The engine keeps two clocks. An event's place in chain order and the moment a trader could have seen it answer different questions, so a simulated fill can never use prices from before a delayed observation. The [architecture notes](docs/ARCHITECTURE.md) walk through each stage and the tests that hold it in place.
 
-PumpQuant started as a live trading system. Its early stage was profitable, but a later strategy's live results drifted from its backtest. A trade-by-trade audit of 49 live round trips found six differences between the backtest and reality, including:
-
-| Backtest assumption | Live run |
-| :-- | :-- |
-| Features could use every trade in the decision's second | A live decision only sees trades that have already arrived |
-| About 34% of take-profit exits captured | 6 of 49 trades (12%); 10 crossed the target |
-| Fill time measured from send to processing | 1.9 s median and 4.9 s 99th percentile from decision to fill |
-| Exits fill once the price is reached | Retries and slow RPCs pushed the slowest exit to about 71 s |
-
-The engine was rebuilt so none of these can recur. Under the corrected model the strategy lost money in all 16 test windows and was retired. The full audit is in the [case study](docs/PARITY_CASE_STUDY.md).
-
-## Project layout
+<details>
+<summary><b>Project layout</b></summary>
 
 ```text
 src/pumpquant/
@@ -125,13 +132,44 @@ rust/
   m4-growth-search/      parallel search kernels
 ```
 
+The old-to-new module map is in [docs/MODULE-MAP.md](docs/MODULE-MAP.md).
+
+</details>
+
+## Background
+
+PumpQuant started as a live trading system. Its early stage was profitable, but a later strategy's live results drifted from its backtest. A trade-by-trade audit of 49 live round trips showed where the backtest had been too kind:
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="assets/audit-light.png">
+  <img src="assets/audit.png" width="100%" alt="Take-profit exits captured: 34.4% in the backtest model, 12.2% (6 of 49) live. Time from decision to fill, live: 1.9 s median entry, 4.9 s 99th-percentile entry, about 71 s for the slowest exit.">
+</picture>
+
+<p align="center"><sub><i>Figures from the historical audit, reported in the <a href="docs/PARITY_CASE_STUDY.md">case study</a>. They are not reproduced by this package.</i></sub></p>
+
+Ten positions crossed their take-profit target, but only six exits were captured. Features had used trades from the whole decision second, and fill time had been measured from send rather than from the decision. The engine was rebuilt so none of these can recur. Under the corrected model the strategy lost money in all 16 test windows and was retired.
+
+<details>
+<summary><b>The six differences the audit found</b></summary>
+
+| Difference | Why it mattered | What the engine does now |
+| :-- | :-- | :-- |
+| Features included the whole boundary second | Backtest decisions saw trades a live decision could not | Separates when data arrived from chain order, with a strict causal boundary |
+| Latency measured from send to processing | The full decision-to-fill path was understated | Measures the complete entry and exit path, retries and slow RPCs included |
+| Retries and take-profit behaviour | A price crossing did not guarantee a captured exit | Replays repricing, trigger checks, failed sends and real attempt limits |
+| Continuous replay | Reactions were faster than the live monitoring allowed | Includes the live monitoring clock |
+| Fee and structural exclusions | The live decisions differed from the modelled ones | Models the same population, including skipped decisions |
+| Bootstrap intervals | Generated paths were read as independent market evidence | Reports simulation error separately from market uncertainty |
+
+</details>
+
 ## Development
 
 ```sh
 make check
 ```
 
-This runs ruff, mypy in strict mode, the 489 tests, the Rust tests, and a parity check of the Rust decoder against the Python one on 220 fixtures. See [Status](docs/STATUS.md) for the latest verified results.
+This runs ruff, mypy in strict mode on 115 source files, the 489 Python tests, the 16 Rust tests, and a parity check of the Rust decoder against the Python one on 220 fixtures. [Status](docs/STATUS.md) lists the latest verified results, with exact versions.
 
 ## Documentation
 
