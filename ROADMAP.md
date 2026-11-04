@@ -1,13 +1,21 @@
 # Roadmap
 
-What is left to do, measured on 4 November 2026. Each item says what done looks like. [Status](docs/STATUS.md) lists what is already verified.
+What comes next, measured on 4 November 2026. Each item says what done looks like. [Status](docs/STATUS.md) lists what is already verified.
 
-## Release
+The plan runs in three steps:
+
+- **Now:** finish this first public release (release, code structure, tests, Rust and README).
+- **Next:** turn the engine into a product people can use without reading its code, and test the integrations it will need.
+- **Later:** live trading from a tested strategy, and markets beyond Pump.fun.
+
+## Now
+
+### Release
 
 - **Publish the CI workflow.** `.github/workflows/checks.yml` runs the same targets as `make check` on Python 3.12, 3.13 and 3.14. It is not on GitHub yet, because pushing workflows needs a token with the workflow scope. Done when it has passed on GitHub and the badges link to its runs.
 - **Tag the first release.** `v0.1.0`, with a short changelog and the built wheel and source archive attached. Done when `pip install` from the release asset runs `pumpquant preview`, as the clean-environment wheel check already does locally.
 
-## Code structure
+### Code structure
 
 The aim is readable units with clear names, not mechanical chopping. Every split keeps the recorded demo output, the 220 decoder parity fixtures and every persisted hash byte-identical, and is proved by recording the touched functions' return values across the test suite before and after.
 
@@ -39,7 +47,7 @@ The aim is readable units with clear names, not mechanical chopping. Every split
   - `execution/priority_fees.py`: `select_priority_fee` (155);
   - `acquisition/block_inventory_audit.py`: `audit_block_inventory` (152).
 
-## Tests
+### Tests
 
 Statement coverage is 77%. The largest gaps:
 
@@ -48,19 +56,36 @@ Statement coverage is 77%. The largest gaps:
 - **`dashboard/server.py`** (56%). Cover the error responses and the snapshot assembly for runs other than the demo.
 - **Fork warnings.** The test run reports four warnings because the search workers fork inside a multi-threaded process. Move the workers to shared memory with the `forkserver` start method, or prove the fork is safe and say why in a comment.
 
-## Rust
+### Rust
 
 - **Run clippy** on both crates with warnings as errors, fix what it finds, and add it to `make check` and CI. It has not been run yet.
 - **Benchmarks.** No throughput is claimed for either crate. Add a reproducible benchmark for the decoder and the search kernels, with the machine and inputs recorded, before making any speed claim.
 
-## README
+### README
 
 - **A phone layout for the figures.** The scenes now drop to one column on narrow screens, but the four framed figures (terminal, architecture, audit and `make check`) are composed at 880 px and read small at phone width. Compose narrow variants. GitHub rewrites a `<picture>` source whose media query mixes width and colour scheme when a reader has picked a theme, so each variant must be chosen by width alone or drawn to work in both themes.
+- **Keep polishing the visuals.** Every figure, scene and the film follow one frame language. Done when each new feature arrives with figures in that language, captured from the real product, in both themes.
 
-## Beyond this release
+## Next
+
+### The product
+
+- **Desktop apps for macOS and Windows.** Native apps, for Apple silicon Macs and for Windows, become the main way to use PumpQuant; the browser dashboard stays for quick, local viewing. Done when a signed app on each platform opens a run, replays its trades and starts a new test.
+- **A guided strategy builder.** Build a strategy step by step and test it on unseen data without writing code. Done when a new user can go from a blank strategy to a tested result in the app, and the strategy it saves runs unchanged from the command line.
+- **Easy data import.** Load market data from common file formats such as CSV and Parquet, or fetch official chain data in one step. Done when both paths produce the same archive format the engine already reads, with a check that reports anything missing.
+- **Plainer wording and simpler screens.** Every term explained where it first appears, and the fewest steps for each common task. Done when every screen has been reviewed against a short glossary and a first-time walkthrough.
+
+### Tested integrations
 
 These were not exercised for this release, and each needs offline tests against recorded responses before it can be called supported:
 
 - provider-backed acquisition (RPC and stream sources, BigQuery exports);
 - chain submission and adaptive priority-fee learning;
 - the live integrations the original system used.
+
+## Later
+
+- **From a tested strategy to live trading in a few steps.** Built on the tested integrations above, with a live status view for every running strategy: positions, fills and how live results compare with the backtest. Done when a strategy can be moved to live trading with explicit limits and stopped at any time, and every live trade is reconciled against the chain, as the original system did.
+- **More chains and launch platforms.** Support for other blockchains and for launch platforms beyond Pump.fun, each with its own exact pricing and decoder checks. Done when a second platform passes the same parity and pricing tests as Pump.fun.
+
+More will be added here as the work goes on.
