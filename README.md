@@ -13,14 +13,16 @@
   <a href="#quick-start"><b>Quick start</b></a> ·
   <a href="#how-it-works"><b>How it works</b></a> ·
   <a href="#background"><b>Background</b></a> ·
-  <a href="docs/PARITY_CASE_STUDY.md"><b>Case study</b></a>
+  <a href="docs/PARITY_CASE_STUDY.md"><b>Case study</b></a> ·
+  <a href="ROADMAP.md"><b>Roadmap</b></a>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.12%2B-0a84ff?style=flat-square&labelColor=1c1c1e" alt="Python 3.12+">
   <img src="https://img.shields.io/badge/Rust-decoder-64d2ff?style=flat-square&labelColor=1c1c1e" alt="Rust decoder">
   <img src="https://img.shields.io/badge/mypy-strict-30d158?style=flat-square&labelColor=1c1c1e" alt="mypy strict">
-  <img src="https://img.shields.io/badge/tests-506%20passing-30d158?style=flat-square&labelColor=1c1c1e" alt="506 tests passing">
+  <img src="https://img.shields.io/badge/tests-508%20passing-30d158?style=flat-square&labelColor=1c1c1e" alt="508 tests passing">
+  <img src="https://img.shields.io/badge/license-MIT-a1a1a6?style=flat-square&labelColor=1c1c1e" alt="MIT license">
 </p>
 
 <br>
@@ -33,6 +35,8 @@
 <br>
 
 PumpQuant is a backtesting engine for [Pump.fun](https://pump.fun), the Solana market where new tokens launch and trade. Backtests often look better than live trading, and PumpQuant is built to close that gap: it replays Pump.fun trades with the delays, fees and failed transactions a live trader would have faced, and tests each strategy only on data it has never seen.
+
+It is for developers and researchers who build trading strategies for Pump.fun and need a backtest that holds up once the strategy trades live.
 
 <table>
   <tr>
@@ -49,6 +53,8 @@ PumpQuant is a backtesting engine for [Pump.fun](https://pump.fun), the Solana m
   </tr>
 </table>
 
+**Built with** Python 3.12+ and Rust. DuckDB and PyArrow handle the market data, NumPy and the arch library the statistics, and two Rust crates decode transactions and run the parallel strategy search. The dashboard is a small local web app, served by Python's standard library and drawn with TradingView's Lightweight Charts.
+
 ## The dashboard
 
 `pumpquant preview` opens the dashboard on a demo run. It leads with the answer, then compares the test periods, shows how each one was tested, and replays any trade:
@@ -56,19 +62,19 @@ PumpQuant is a backtesting engine for [Pump.fun](https://pump.fun), the Solana m
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="assets/scene-answer-light.png">
-    <img src="assets/scene-answer.png" width="49%" alt="The dashboard's answer to whether a momentum rule holds up on data it has never seen: profitable in 2 of 3 test periods, 47 outcomes counted.">
+    <img src="assets/scene-answer.png" width="410" alt="The dashboard's answer to whether a momentum rule holds up on data it has never seen: profitable in 2 of 3 test periods, 47 outcomes counted.">
   </picture>
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="assets/scene-periods-light.png">
-    <img src="assets/scene-periods.png" width="49%" alt="The combined result, +0.217 SOL across all test periods, beside test period 1 at -0.127 SOL and test period 2 at +0.268 SOL.">
+    <img src="assets/scene-periods.png" width="410" alt="The combined result, +0.217 SOL across all test periods, beside test period 1 at -0.127 SOL and test period 2 at +0.268 SOL.">
   </picture>
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="assets/scene-replay-light.png">
-    <img src="assets/scene-replay.png" width="49%" alt="A replayed take-profit trade on token #20: the signal, a buy one second later and a sell five seconds after that, +0.037 SOL after fees.">
+    <img src="assets/scene-replay.png" width="410" alt="A replayed take-profit trade on token #20: the signal, a buy one second later and a sell five seconds after that, +0.037 SOL after fees.">
   </picture>
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="assets/scene-method-light.png">
-    <img src="assets/scene-method.png" width="49%" alt="How each period is tested, drawn to scale: learn on the earlier tokens (18, then 24, then 30), then test on the next six.">
+    <img src="assets/scene-method.png" width="410" alt="How each period is tested, drawn to scale: learn on the earlier tokens (18, then 24, then 30), then test on the next six.">
   </picture>
 </p>
 
@@ -95,39 +101,24 @@ Run on this repository, the session looks like this:
 
 <p align="center"><sub>The commands above, run on 4 November 2026; the output is pasted verbatim.</sub></p>
 
-`examples/periods.py` prints the result of each test period in the demo. `examples/quote.py` uses the pricing engine directly. It prices a 0.1 SOL buy on a new token (SOL is Solana's currency), then prices the same buy again after someone else's 1 SOL buy lands first:
+`examples/periods.py` prints the result of each test period in the demo. `examples/quote.py` calls the pricing engine directly. Its first half prices a 0.1 SOL buy on a new token (SOL is Solana's currency):
 
 ```python
 from pumpquant.pricing.bonding_curve import pump_buy_exact_quote_in
 
-SOL = 1_000_000_000  # lamports
-TOKEN = 1_000_000  # Pump.fun tokens have six decimals
+SOL = 1_000_000_000  # lamports in one SOL; tokens have six decimals
 FEES = {"protocol_fee_bps": 100, "creator_fee_bps": 0}  # a 1% fee
-
-# A new token's bonding curve: virtual reserves, and the tokens it can still sell.
-curve = {
+curve = {  # a new token's bonding curve
     "virtual_base_reserve": 1_073_000_000_000_000,
     "virtual_quote_reserve": 30 * SOL,
     "real_base_reserve": 793_100_000_000_000,
 }
 
-first = pump_buy_exact_quote_in(gross_quote_amount=SOL // 10, **curve, **FEES)
-fee = first.total_fee_quote / SOL
-print(f"0.1 SOL buys {first.base_amount / TOKEN:,.0f} tokens, after a {fee:.5f} SOL fee")
-
-# Someone else's 1 SOL buy lands first and moves the curve.
-other = pump_buy_exact_quote_in(gross_quote_amount=SOL, **curve, **FEES)
-curve = {
-    "virtual_base_reserve": curve["virtual_base_reserve"] - other.base_amount,
-    "virtual_quote_reserve": curve["virtual_quote_reserve"] + other.curve_quote_amount,
-    "real_base_reserve": curve["real_base_reserve"] - other.base_amount,
-}
-late = pump_buy_exact_quote_in(gross_quote_amount=SOL // 10, **curve, **FEES)
-fewer = 1 - late.base_amount / first.base_amount
-print(f"one trade later it buys {late.base_amount / TOKEN:,.0f} tokens, {fewer:.1%} fewer")
+buy = pump_buy_exact_quote_in(gross_quote_amount=SOL // 10, **curve, **FEES)
+print(f"0.1 SOL buys {buy.base_amount / 1e6:,.0f} tokens")
 ```
 
-Being one trade late costs 6.3% of the tokens, which is why every replay in PumpQuant carries its real delay. `pumpquant demo` prints the demo's full report as JSON, including the rule each test period selected.
+It prints `0.1 SOL buys 3,529,605 tokens`. The second half lets someone else's 1 SOL buy land first, and the same 0.1 SOL then buys 6.3% fewer tokens. That is why every replay in PumpQuant carries its real delay. `pumpquant demo` prints the demo's full report as JSON, including the rule each test period selected.
 
 ## How it works
 
@@ -166,6 +157,7 @@ examples/        the Quick start scripts and the recorded demo output
 scripts/         the Rust and Python decoder parity check
 schemas/         the pinned Pump program event layouts
 docs/            architecture, decisions, status, provenance and the case study
+ROADMAP.md       the work still ahead
 ```
 
 Each module's original name is in [docs/MODULE-MAP.md](docs/MODULE-MAP.md).
@@ -201,7 +193,7 @@ A take-profit is a sell triggered when the price reaches its target. The price r
 
 ## Development
 
-One command runs every check: ruff, mypy in strict mode on 112 source files, the 506 Python tests, the two examples, the 16 Rust tests with warnings as errors, and a parity check of the Rust decoder against the Python one on 220 fixtures.
+One command runs every check: ruff, mypy in strict mode on 112 source files, the 508 Python tests, the two examples, the 16 Rust tests with warnings as errors, and a parity check of the Rust decoder against the Python one on 220 fixtures.
 
 ```sh
 make check
@@ -211,7 +203,7 @@ Its output on this repository:
 
 <picture>
   <source media="(prefers-color-scheme: light)" srcset="assets/check-light.png">
-  <img src="assets/check.png" width="100%" alt="make check: ruff clean, files formatted, mypy clean on 112 source files, 506 tests passed, both examples run, Rust tests 9, 2, 3 and 2 passed, and decoder parity on 16 valid, 4 malformed and 200 differential fixtures.">
+  <img src="assets/check.png" width="100%" alt="make check: ruff clean, files formatted, mypy clean on 112 source files, 508 tests passed, both examples run, Rust tests 9, 2, 3 and 2 passed, and decoder parity on 16 valid, 4 malformed and 200 differential fixtures.">
 </picture>
 
 <p align="center"><sub>An excerpt of a real run on 4 November 2026; progress, compiler lines and the examples' output are left out. <a href="docs/STATUS.md">Status</a> lists every verified result, with exact versions.</sub></p>
@@ -223,6 +215,11 @@ Its output on this repository:
 - [Case study](docs/PARITY_CASE_STUDY.md): the audit that led to the rebuild
 - [Status](docs/STATUS.md): what was verified for this release, its scope and its limits
 - [Provenance](docs/PROVENANCE.md): what changed in this release, third-party notices and licences
+- [Roadmap](ROADMAP.md): the work still ahead
+
+## License
+
+MIT. The bundled Lightweight Charts (Apache-2.0) and dashboard fonts (SIL Open Font License) keep their own licences, listed in [Provenance](docs/PROVENANCE.md).
 
 <br>
 
