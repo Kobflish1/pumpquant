@@ -7,7 +7,7 @@
 
 **PumpQuant tests trading ideas for newly launched Solana tokens the way they would really have played out: with the delays, fees, failed transactions and capital limits a live trade runs into.**
 
-It started as a live trading system. Its early stage made money. A later strategy lost money, even though its backtest said it should win. Tracing why showed that the backtest had quietly let each decision see trades it could not have seen live. PumpQuant was rebuilt around that lesson, the rebuilt engine rejected the strategy, and this repository is that engine.
+It began as a live trading system, and its early stage was profitable. When a later strategy's live results stopped matching its backtest, tracing the gap uncovered six mismatches between backtest and reality. The subtlest was a look-ahead flaw: each simulated decision could see trades that a live trader could not yet have seen. PumpQuant was rebuilt so none of them can recur, and the stricter engine retired the strategy before it could risk more capital. This repository is that engine.
 
 <br>
 
@@ -17,13 +17,13 @@ It started as a live trading system. Its early stage made money. A later strateg
 
 **How it works.** Every decision is made from what was observable at that moment, then replayed against the market with latency, retries and costs, across chronological test periods with every trial recorded.
 
-**What it found.** Once timing was modelled honestly, the strategy that had passed its backtest lost money in all 16 of its test windows. It was retired.
+**What it caught.** Flaws that made a strategy look far better on paper than it could ever be live. With honest timing it failed all 16 of its test windows, so it was retired instead of trading on.
 
 **Built with.** Python 3.11+ under strict type checking, Rust for the wire decoder and search kernels, DuckDB, Polars and PyArrow.
 
 <br>
 
-## The investigation
+## How the flaw was found
 
 The live run and the backtest disagreed, so the run was reconciled trade by trade. The figures below come from that internal audit of the historical run. The private ledgers behind them are not part of this repository.
 
@@ -57,6 +57,16 @@ The search is chronological. A rule is tuned on earlier tokens, frozen, and then
 <img src="assets/replay.png" width="100%" alt="A candlestick chart of one simulated trade, marking the signal, the buy one second later and the stop-loss sell, with the result after fees.">
 
 Each trade is replayed against the market as it stood at that moment: the signal, the buy a moment later at whatever price was then available, and the exit when its rule fired. Fees and failed attempts count against the result. The chart above comes from the bundled demo, which runs on generated data.
+
+<br>
+
+## Scope
+
+- **A research engine, not a trading bot.** The strategy that traded was retired by this engine, and no later candidate has yet cleared its gates.
+- **The demo runs on generated data,** so anyone can run the whole method in a second. It shows how the method works, not whether a strategy makes money.
+- **Private data stays private:** market archives, ledgers, wallets, balances and operating configuration are not included.
+- **Provider-backed acquisition is included** but was not exercised for this release. It needs separately configured accounts.
+- **Licence:** none has been granted yet. Third-party notices are kept in [Provenance](docs/PROVENANCE.md).
 
 <br>
 
@@ -94,17 +104,4 @@ rust/
 - **Strict at every boundary.** Decoders fail closed on malformed input, archives are sealed with content hashes, and long jobs resume from crash-safe state.
 - **Verified.** 489 tests, and strict mypy across all 115 source files. The Rust decoder matches the Python one on 220 valid, malformed and randomised transactions.
 
-Design choices and their trade-offs are written up in [Engineering decisions](docs/DECISIONS.md). The pipeline is described in [Architecture](docs/ARCHITECTURE.md).
-
-<br>
-
-## What this is, and isn't
-
-- **No strategy here is validated or live.** The one that traded was retired, and no later candidate has been validated.
-- **The demo runs on generated data.** It shows how the method works, never whether a strategy makes money.
-- **Private data is excluded:** market archives, ledgers, wallets, balances and operating configuration.
-- **Acquisition from data providers is included but was not exercised for this release.** It needs separately configured accounts.
-
-What was checked, and how to reproduce it, is listed in [Status](docs/STATUS.md).
-
-<sub>No open-source licence has been granted yet. Third-party notices are kept in <a href="docs/PROVENANCE.md">Provenance</a>.</sub>
+Go deeper: the design choices and their trade-offs in [Engineering decisions](docs/DECISIONS.md), the pipeline in [Architecture](docs/ARCHITECTURE.md), and everything verified for this release in [Status](docs/STATUS.md).
