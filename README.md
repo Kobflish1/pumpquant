@@ -1,3 +1,28 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/icon-dark.png">
+    <img src="assets/icon-light.png" width="88" alt="PumpQuant">
+  </picture>
+</p>
+
+<h3 align="center">Backtesting and research engine for Pump.fun tokens on Solana</h3>
+
+<p align="center">
+  <a href="#quick-start"><b>Quick start</b></a> ·
+  <a href="#background"><b>Background</b></a> ·
+  <a href="docs/ARCHITECTURE.md"><b>Architecture</b></a> ·
+  <a href="docs/PARITY_CASE_STUDY.md"><b>Case study</b></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.11%2B-0a84ff?style=flat-square&labelColor=1c1c1e" alt="Python 3.11+">
+  <img src="https://img.shields.io/badge/Rust-decoder-64d2ff?style=flat-square&labelColor=1c1c1e" alt="Rust decoder">
+  <img src="https://img.shields.io/badge/mypy-strict-30d158?style=flat-square&labelColor=1c1c1e" alt="mypy strict">
+  <img src="https://img.shields.io/badge/tests-489%20passing-30d158?style=flat-square&labelColor=1c1c1e" alt="489 tests passing">
+</p>
+
+<br>
+
 <picture>
   <source srcset="assets/hero.avif" type="image/avif">
   <img src="assets/hero.webp" width="100%" alt="PumpQuant: the title resolves in glass, then the research dashboard rises into view.">
@@ -5,7 +30,7 @@
 
 <br>
 
-PumpQuant is a backtesting and research engine for [Pump.fun](https://pump.fun) tokens on Solana. It replays every trade with the latency, fees and failed transactions a live trader would have faced, and tests each strategy only on data it has never seen.
+PumpQuant replays every [Pump.fun](https://pump.fun) trade with the latency, fees and failed transactions a live trader would have faced, and tests each strategy only on data it has never seen.
 
 - **Exact pricing**: integer quotes that match the Pump and PumpSwap programs, rounding included
 - **No look-ahead**: every feature is computed only from data that had arrived at decision time
@@ -14,7 +39,17 @@ PumpQuant is a backtesting and research engine for [Pump.fun](https://pump.fun) 
 - **Strict decoding**: Solana transactions and program events, with a Rust decoder checked against the Python one
 - **Dashboard**: a local, read-only view of every run, period and trade
 
-<img src="assets/dashboard.png" width="100%" alt="The PumpQuant dashboard showing a demo run: profitable in 2 of 3 test periods, +0.217 SOL combined across 47 outcomes at 0.1 SOL per trade.">
+<br>
+
+<p align="center">
+  <img src="assets/scene-answer.png" width="49%" alt="The dashboard's answer screen: profitable in 2 of 3 test periods, +0.217 SOL combined across 47 outcomes.">
+  <img src="assets/scene-periods.png" width="49%" alt="Three test periods side by side: -0.127, +0.268 and +0.076 SOL, each with its trades as bars.">
+</p>
+<p align="center">
+  <img src="assets/scene-replay.png" width="49%" alt="A replayed trade: signal, buy one second later, stop-loss sell, and the result after fees.">
+  <img src="assets/scene-method.png" width="49%" alt="The walk-forward method: learn on earlier tokens, then test on the next six, drawn to scale.">
+</p>
+<p align="center"><sub>The local dashboard, running on the bundled demo. Simulated data.</sub></p>
 
 ## Quick start
 
@@ -61,7 +96,6 @@ PumpQuant started as a live trading system. Its early stage was profitable, but 
 
 The engine was rebuilt so none of these can recur. Under the corrected model the strategy lost money in all 16 test windows and was retired. The full audit is in the [case study](docs/PARITY_CASE_STUDY.md).
 
-<img src="assets/replay.png" width="100%" alt="A replayed demo trade: the signal, the buy one second later and the stop-loss sell two seconds after that, with the result after fees.">
 
 ## Project layout
 
@@ -100,3 +134,14 @@ This runs ruff, mypy in strict mode, the 489 tests, the Rust tests, and a parity
 ## License
 
 License terms have not been set yet. Third-party notices are listed in [Provenance](docs/PROVENANCE.md).
+
+<br>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/icon-dark.png">
+    <img src="assets/icon-light.png" width="36" alt="">
+  </picture>
+  <br>
+  <sub>Built by <a href="https://github.com/Kobflish1">Elias Hassari</a></sub>
+</p>
