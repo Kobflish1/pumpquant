@@ -1,4 +1,4 @@
-"""Causal state machine for the frozen M4 first-stair live rule."""
+"""Causal state machine for the frozen live trading rule, as it ran in its first capital stage."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ LAMPORTS_PER_SOL = 1_000_000_000
 
 
 @dataclass(frozen=True, slots=True)
-class M4Decision:
+class LiveDecision:
     pool: str
     mint: str
     decision_time_ns: int
@@ -38,7 +38,7 @@ class _Pool:
 
 
 @dataclass(slots=True)
-class M4LiveEngine:
+class LiveRuleEngine:
     checkpoint_seconds: int = 8
     maximum_quote_liquidity_sol: float = 0.908108808
     maximum_decision_lateness_ms: float = 1_500.0
@@ -93,8 +93,8 @@ class M4LiveEngine:
                 state.nonzero_virtual_quote_seen or virtual_quote_reserves != 0
             )
 
-    def due_decisions(self, now_ns: int) -> tuple[M4Decision, ...]:
-        decisions: list[M4Decision] = []
+    def due_decisions(self, now_ns: int) -> tuple[LiveDecision, ...]:
+        decisions: list[LiveDecision] = []
         for state in self.pools.values():
             if state.decided or state.first_trade_observed_time_ns is None:
                 continue
@@ -121,7 +121,7 @@ class M4LiveEngine:
             else:
                 action, reason = "skip", "liquidity_above_threshold"
             decisions.append(
-                M4Decision(
+                LiveDecision(
                     pool=state.pool,
                     mint=state.mint,
                     decision_time_ns=deadline,

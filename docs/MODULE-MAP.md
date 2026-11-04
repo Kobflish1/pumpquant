@@ -18,22 +18,16 @@ In this release the flat `pumpquant` package was grouped into subpackages and so
 | `raw_stream_archive` | `acquisition.stream_archive` |
 | `raw_stream_audit` | `acquisition.stream_audit` |
 | `transaction_hydrator` | `acquisition.transaction_hydrator` |
-| `correction_v2_contract` | `audits.correction_v2.contract` |
-| `corrected_exact_v2` | `audits.correction_v2.exact` |
-| `independent_feature_audit_v2` | `audits.correction_v2.feature_audit` |
-| `corrected_grid_v2` | `audits.correction_v2.grid` |
-| `correction_lineage_v2` | `audits.correction_v2.lineage` |
-| `correction_v2_retry_contract` | `audits.correction_v2.retry_contract` |
-| `m4_live` | `audits.m4.live_rule` |
-| `m4_post_stair_audit` | `audits.m4.post_stair` |
-| `executable_m4_replay` | `audits.m4.replay` |
-| `m4_execution_revalidation` | `audits.m4.revalidation` |
+| `m4_live` | `audits.live_rule.engine` |
+| `m4_post_stair_audit` | `audits.live_rule.execution_audit` |
+| `executable_m4_replay` | `audits.live_rule.replay` |
+| `m4_execution_revalidation` | `audits.live_rule.revalidation` |
 | `durable_state` | `core.durable_state` |
 | `io` | `core.io` |
 | `schema` | `core.schema` |
 | `synthetic` | `core.synthetic` |
 | `token_evidence` | `dashboard.evidence` |
-| `live_dashboard` | `dashboard.server` |
+| `live_dashboard` | `dashboard.server`, split into `config`, `manifests`, `atlas`, `market` and `snapshot` |
 | `instruction_accounts` | `decoding.instruction_accounts` |
 | `instruction_intent` | `decoding.instruction_intent` |
 | `program_events` | `decoding.program_events` |
@@ -53,11 +47,9 @@ In this release the flat `pumpquant` package was grouped into subpackages and so
 | `features` | `features.bars` |
 | `event_features` | `features.events` |
 | `lifecycle_features` | `features.lifecycle` |
-| `pumpapi_features` | `features.pumpapi` |
-| `pumpapi_causal_linear` | `features.pumpapi_causal_linear` |
-| `pumpapi_payoffs` | `features.pumpapi_payoffs` |
-| `pumpapi_feature_selection` | `features.pumpapi_selection` |
-| `pumpapi_state_action` | `features.pumpapi_state_action` |
+| `pumpapi_features` | `features.checkpoint_features` |
+| `pumpapi_causal_linear` | `features.checkpoint_states` |
+| `pumpapi_feature_selection` | `features.feature_selection` |
 | `chunk_bars` | `features.streaming_bars` |
 | `protocol_math` | `pricing.bonding_curve` |
 | `microstructure` | `pricing.depth_ladder` |
@@ -65,7 +57,6 @@ In this release the flat `pumpquant` package was grouped into subpackages and so
 | `pumpswap_quote_surface` | `pricing.quote_surface` |
 | `alpha_strategy` | `research.alpha_strategy` |
 | `alpha_tournament` | `research.alpha_tournament` |
-| `direct_goal_outcomes` | `research.direct_goal_outcomes` |
 | `distributed_reducer` | `research.distributed_reducer` |
 | `distributed_search` | `research.distributed_search` |
 | `event_interactions` | `research.event_interactions` |
@@ -80,10 +71,9 @@ In this release the flat `pumpquant` package was grouped into subpackages and so
 | `search` | `research.search` |
 | `tail_exit_research` | `research.tail_exit` |
 | `tail_exit_runtime` | `research.tail_exit_runtime` |
-| `state_config_schedule` | `state.config_schedule` |
 | `launch_times` | `state.launch_times` |
 | `lifecycle_catalog` | `state.lifecycle_catalog` |
-| `lifecycle_launch_times` | `state.lifecycle_launch_times` |
+| `lifecycle_launch_times` | `state.launch_times` (merged with `launch_times`) |
 | `amm_state_materializer` | `state.materializer` |
 | `amm_state_reconstruction` | `state.reconstruction` |
 | `capacity_exact_bridge` | `validation.capacity_bridge` |
@@ -96,5 +86,19 @@ In this release the flat `pumpquant` package was grouped into subpackages and so
 | `exact_survivor_gate` | `validation.survivor_gate` |
 | `cli` | `cli` (split into `cli/research.py` and `cli/bigquery.py`) |
 | | `demo` (new: the demo pipeline shared by the CLI and the preview) |
-| | `core.hashing` (new: one file-hash helper replacing twenty copies) |
+| | `core.hashing` (new: one home for the file, byte and canonical-JSON hashes) |
+| | `acquisition.bigquery.daily` (new: the guarded daily and batch archive runs, moved out of the CLI) |
 | | `dashboard.preview` (new: replaces `examples/dashboard_preview.py`) |
+
+## Removed in the November 2026 cleanup
+
+Code that nothing called and no test covered was deleted rather than kept:
+
+| Module | Why it went |
+| :-- | :-- |
+| `audits.correction_v2` | About 9,900 lines that re-ran the corrected research grids by importing private runner scripts that are not in this snapshot, so none of it could run here. |
+| `state.config_schedule` | A fee-schedule builder with no caller and no tests. |
+| `research.direct_goal_outcomes` | Contract types with no caller. |
+| `features.pumpapi_state_action`, `features.pumpapi_payoffs` | Superseded by `features.checkpoint_states`; no caller. |
+
+The Rust crate `m4-growth-search` is now `growth-search`, and its binaries are `interaction_search`, `lifecycle_triples` and `crossday_triples`. Persisted `kind` strings and default artifact paths keep their original spelling.

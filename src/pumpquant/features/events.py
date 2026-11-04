@@ -4,7 +4,7 @@ The bar layer is useful for broad screens, but it cannot recover exact
 equal-volume buckets, event durations, or wallet paths.  This module therefore
 operates on chain-ordered atomic event records.  Every row contains only state
 available after the current event's ``available_at_ns``; warm-up and missing
-provenance remain instead of being imputed.
+provenance stay visible instead of being imputed.
 """
 
 from __future__ import annotations

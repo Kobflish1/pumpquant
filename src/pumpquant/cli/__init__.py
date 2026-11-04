@@ -9,7 +9,8 @@ from pumpquant.cli import bigquery, research
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="pumpquant", description="Pump/PumpSwap execution-aware strategy research"
+        prog="pumpquant",
+        description="Backtesting engine for Pump.fun, Solana's token-launch market",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
     research.register(subparsers)

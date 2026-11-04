@@ -1,7 +1,7 @@
 # Every check CI runs, in the order a reviewer would want them.
 PYTHON ?= python3
 CARGO_DECODER = rust/pump-decoder-kernel/Cargo.toml
-CARGO_SEARCH = rust/m4-growth-search/Cargo.toml
+CARGO_SEARCH = rust/growth-search/Cargo.toml
 # Compiler warnings fail the build; Cargo.lock pins every dependency.
 RUST_ENV = RUSTFLAGS="-D warnings"
 

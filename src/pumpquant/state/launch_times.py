@@ -1,20 +1,12 @@
-"""Export verified lifecycle launch anchors for :mod:`pumpquant.features.bars`.
+"""Export each token's true launch time, ``{mint: launch_block_time_ns}``, for bar building.
 
-The lifecycle feature materialiser writes one feature row per swap.  Launch
-anchor columns are therefore repeated many times, and rows without a launch
-anchor are rather than an invitation to infer one from the first
-observed swap.  This module verifies the feature dataset manifest and emits
-the small ``{mint: launch_block_time_ns}`` object consumed by ``pumpquant
-bars``.
-
-The exporter is fail-closed: a malformed manifest/row, a
-conflicting anchor, or an ambiguous duplicate aborts before an existing output
-is replaced.  Mints whose rows say that the launch anchor is
-missing are reported and omitted unless another verified partition supplies
-one consistent true anchor.  ``strict`` (also exposed as
-``--require-complete`` by the CLI) fails when any mint remains unresolved
-across all inputs; it never turns a first-observed timestamp into a launch
-time.
+Two verified sources give the same file. :func:`export_launch_times` reads the lifecycle
+feature dataset, where the launch columns repeat on every swap row;
+:func:`export_launch_times_from_lifecycle` reads the much smaller lifecycle-event sidecars
+directly. Both verify every manifest and shard first and fail closed: a malformed row, a
+conflicting anchor or an ambiguous duplicate aborts before any output is replaced. A mint
+without a true launch anchor is reported as missing and never given the time of its first
+observed swap; ``strict`` (``--require-complete`` in the CLI) fails if any remain.
 """
 
 from __future__ import annotations
@@ -29,7 +21,12 @@ from pathlib import Path
 from typing import Any, cast
 
 from pumpquant.core.hashing import sha256_file
-from pumpquant.features.lifecycle import FEATURES_KIND
+from pumpquant.features.lifecycle import (
+    FEATURES_KIND,
+    LifecycleFeatureError,
+    _LifecycleIndex,
+    _resolve_lifecycle_input,
+)
 
 try:  # Optional data dependency; loaded only when this exporter is used.
     import pyarrow.parquet as pq
@@ -329,9 +326,11 @@ def _event_id(row: Mapping[str, object], row_number: int) -> str:
     return _text(value, f"feature row {row_number} event_id")
 
 
-def _write_json_atomic(path: Path, payload: Mapping[str, int]) -> None:
+def _write_json_atomic(
+    path: Path, payload: Mapping[str, int], *, error: type[Exception] = LaunchTimesError
+) -> None:
     if path.is_symlink():
-        raise LaunchTimesError(f"output must not be a symlink: {path}")
+        raise error(f"output must not be a symlink: {path}")
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary_name = tempfile.mkstemp(
         prefix=f".{path.name}.", suffix=".partial", dir=path.parent
@@ -520,9 +519,111 @@ def build_launch_times(
             pass
 
 
+def export_launch_times_from_lifecycle(
+    inputs: Sequence[str | Path] | str | Path,
+    output: str | Path,
+    *,
+    batch_size: int = DEFAULT_BATCH_SIZE,
+) -> dict[str, object]:
+    """Verify lifecycle sidecars and emit ``{mint: launch_block_time_ns}``.
+
+    Inputs must be supplied in global chain order.  They may be direct
+    ``pumpquant.trade_event_dataset`` roots or materialised chunk wrappers.
+    Duplicate lifecycle identities, order overlap, multiple launch events for
+    one mint, or a launch without a block timestamp fail before publication.
+    """
+
+    if isinstance(inputs, (str, Path)):
+        values: tuple[str | Path, ...] = (inputs,)
+    else:
+        values = tuple(inputs)
+    if not values:
+        raise LifecycleFeatureError("at least one lifecycle input is required")
+    if isinstance(batch_size, bool) or not isinstance(batch_size, int) or batch_size <= 0:
+        raise LifecycleFeatureError("batch_size must be a positive integer")
+
+    target = Path(output).expanduser().resolve()
+    resolved = tuple(_resolve_lifecycle_input(value) for value in values)
+    protected = {
+        path.resolve()
+        for item in resolved
+        for path in (item.manifest_path, *(shard.path for shard in item.shards))
+    }
+    if target in protected:
+        raise LifecycleFeatureError("output must be distinct from every verified lifecycle file")
+
+    row_count = 0
+    launch_anchor_count = 0
+    with tempfile.TemporaryDirectory(prefix="pumpquant-lifecycle-launches-") as directory:
+        index = _LifecycleIndex(Path(directory) / "identity.sqlite")
+        try:
+            import pyarrow.parquet as pq
+
+            for item in resolved:
+                streamed = 0
+                for shard in item.shards:
+                    parquet = pq.ParquetFile(shard.path)
+                    try:
+                        for batch in parquet.iter_batches(batch_size=batch_size):
+                            for raw in batch.to_pylist():
+                                if not isinstance(raw, Mapping):
+                                    raise LifecycleFeatureError(
+                                        "lifecycle Parquet row must be an object"
+                                    )
+                                anchor = index.add_row(raw)
+                                if anchor is not None and anchor.kind == "launch":
+                                    launch_anchor_count += 1
+                                row_count += 1
+                                streamed += 1
+                    finally:
+                        parquet.close()
+                if streamed != item.row_count:
+                    raise LifecycleFeatureError(
+                        "streamed lifecycle row count differs from manifest"
+                    )
+            index.commit()
+            launch_times: dict[str, int] = {}
+            launch_ids: dict[str, str] = {}
+            cursor = index.connection.execute(
+                "SELECT mint,event_id,block_time_ns FROM anchors WHERE kind='launch' "
+                "ORDER BY mint,slot,tx_index,instruction_index,event_index,event_id"
+            )
+            for mint_value, event_id_value, timestamp_value in cursor:
+                mint = str(mint_value)
+                event_id = str(event_id_value)
+                if timestamp_value is None:
+                    raise LifecycleFeatureError(f"launch anchor has no block timestamp: {event_id}")
+                timestamp = int(timestamp_value)
+                if timestamp < 0:
+                    raise LifecycleFeatureError(
+                        f"launch anchor has a negative block timestamp: {event_id}"
+                    )
+                if mint in launch_times:
+                    raise LifecycleFeatureError(
+                        "multiple true launch anchors for mint "
+                        f"{mint}: {launch_ids[mint]} and {event_id}"
+                    )
+                launch_times[mint] = timestamp
+                launch_ids[mint] = event_id
+        finally:
+            index.close()
+
+    _write_json_atomic(target, launch_times, error=LifecycleFeatureError)
+    return {
+        "status": "published",
+        "output": str(target),
+        "input_count": len(resolved),
+        "lifecycle_rows_read": row_count,
+        "launch_anchor_rows": launch_anchor_count,
+        "launch_times_written": len(launch_times),
+        "first_observed_fallback": False,
+    }
+
+
 __all__ = [
     "DEFAULT_BATCH_SIZE",
     "LaunchTimesError",
     "build_launch_times",
     "export_launch_times",
+    "export_launch_times_from_lifecycle",
 ]

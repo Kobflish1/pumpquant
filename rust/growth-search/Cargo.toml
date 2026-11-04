@@ -1,8 +1,8 @@
 [package]
-name = "m4-growth-search"
+name = "growth-search"
 version = "0.1.0"
 edition = "2024"
-description = "ARM64 all-core geometric-growth optimizer for PumpSwap research"
+description = "Parallel searches over labelled research data, ranking rules by geometric growth"
 license = "MIT"
 publish = false
 

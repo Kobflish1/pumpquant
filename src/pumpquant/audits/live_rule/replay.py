@@ -1,4 +1,4 @@
-"""Causal, execution-aware replay primitives for the invalidated M4 rule.
+"""Causal, execution-aware replay primitives for the invalidated live rule.
 
 Archive PumpSwap events expose integer-second block times, not the local
 processed-arrival timestamps used by the live runner.  This module therefore

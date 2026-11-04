@@ -43,7 +43,7 @@ A lifecycle trade must include entry, observation cadence, trigger time, exit la
 
 `execution/shared_wallet.py` handles cash and overlapping capital. `validation/goal.py` requires explicit outcomes at exact budgets and scenarios, real consecutive validation windows, capital release times and purged chronological folds. Its family-level SPA test needs NumPy and `arch`. Interpolating an unpriced order size, or repeating one day to stand in for a multi-day window, is outside that contract.
 
-`rust/m4-growth-search` holds the Rayon search kernels used to scan large, already-labelled research surfaces. No throughput figure is claimed for them.
+`rust/growth-search` holds the Rayon search kernels used to scan large, already-labelled research surfaces. No throughput figure is claimed for them.
 
 ## The demo and the dashboard
 

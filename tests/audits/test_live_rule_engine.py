@@ -1,8 +1,8 @@
-from pumpquant.audits.m4.live_rule import M4LiveEngine
+from pumpquant.audits.live_rule.engine import LiveRuleEngine
 
 
 def test_enters_at_exact_frozen_threshold() -> None:
-    engine = M4LiveEngine()
+    engine = LiveRuleEngine()
     engine.observe_pool(pool="p", mint="m", slot=1)
     engine.observe_trade(
         pool="p",
@@ -17,7 +17,7 @@ def test_enters_at_exact_frozen_threshold() -> None:
 
 
 def test_uses_last_causal_state_and_rejects_cashback() -> None:
-    engine = M4LiveEngine()
+    engine = LiveRuleEngine()
     engine.observe_pool(pool="p", mint="m", slot=1)
     engine.observe_trade(
         pool="p",
@@ -47,7 +47,7 @@ def test_uses_last_causal_state_and_rejects_cashback() -> None:
 
 
 def test_fails_closed_for_stale_or_unknown_pool() -> None:
-    engine = M4LiveEngine(maximum_decision_lateness_ms=100)
+    engine = LiveRuleEngine(maximum_decision_lateness_ms=100)
     engine.observe_trade(
         pool="unknown",
         event_time_ns=1,
@@ -70,7 +70,7 @@ def test_fails_closed_for_stale_or_unknown_pool() -> None:
 
 
 def test_duplicate_pool_decision_is_impossible() -> None:
-    engine = M4LiveEngine()
+    engine = LiveRuleEngine()
     engine.observe_pool(pool="p", mint="m", slot=1)
     engine.observe_trade(
         pool="p",
@@ -84,7 +84,7 @@ def test_duplicate_pool_decision_is_impossible() -> None:
 
 
 def test_nonzero_virtual_quote_reserve_fails_closed() -> None:
-    engine = M4LiveEngine()
+    engine = LiveRuleEngine()
     engine.observe_pool(pool="p", mint="m", slot=1)
     engine.observe_trade(
         pool="p",
@@ -100,7 +100,7 @@ def test_nonzero_virtual_quote_reserve_fails_closed() -> None:
 
 
 def test_stair_two_parameters_use_five_second_liquidity_rule() -> None:
-    engine = M4LiveEngine(
+    engine = LiveRuleEngine(
         checkpoint_seconds=5,
         maximum_quote_liquidity_sol=1.459006092,
     )
@@ -118,7 +118,7 @@ def test_stair_two_parameters_use_five_second_liquidity_rule() -> None:
 
 
 def test_checkpoint_uses_causal_arrival_time_not_second_timestamp() -> None:
-    engine = M4LiveEngine(
+    engine = LiveRuleEngine(
         checkpoint_seconds=5,
         maximum_quote_liquidity_sol=1.0,
     )
@@ -150,7 +150,7 @@ def test_checkpoint_uses_causal_arrival_time_not_second_timestamp() -> None:
 
 
 def test_trade_arriving_after_causal_checkpoint_cannot_change_decision() -> None:
-    engine = M4LiveEngine(
+    engine = LiveRuleEngine(
         checkpoint_seconds=5,
         maximum_quote_liquidity_sol=1.0,
     )

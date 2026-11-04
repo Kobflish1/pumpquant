@@ -1,4 +1,4 @@
-"""Post-stair execution audit helpers for the frozen live M4 strategy."""
+"""Audit of the live rule's executions after its first capital stage: fees, retries and fills."""
 
 from __future__ import annotations
 

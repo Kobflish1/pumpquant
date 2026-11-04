@@ -1,4 +1,4 @@
-"""Causal checkpoint and end-to-end latency helpers for M4 revalidation."""
+"""Causal checkpoints and end-to-end latency, for revalidating the live rule."""
 
 from __future__ import annotations
 

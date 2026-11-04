@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from pumpquant.audits.m4.revalidation import (
+from pumpquant.audits.live_rule.revalidation import (
     causal_second_checkpoint_path,
     summarize_end_to_end_latencies,
 )

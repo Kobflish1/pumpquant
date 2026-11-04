@@ -8,7 +8,7 @@ import pyarrow.parquet as pq
 import pytest
 
 from pumpquant.acquisition.pumpapi_replay import SCHEMA
-from pumpquant.features.pumpapi import (
+from pumpquant.features.checkpoint_features import (
     EXTENDED_FEATURE_GROUPS,
     EXTENDED_FEATURES,
     FEATURE_GROUPS,
@@ -16,7 +16,7 @@ from pumpquant.features.pumpapi import (
     V4_FEATURE_GROUPS,
     V4_FEATURES,
 )
-from pumpquant.features.pumpapi_causal_linear import materialize_causal_states_linear
+from pumpquant.features.checkpoint_states import materialize_checkpoint_states
 
 
 def _row(**changes: object) -> dict[str, object]:
@@ -100,7 +100,7 @@ def test_materializes_strict_time_and_event_checkpoints(tmp_path: Path) -> None:
     ]
     pq.write_table(pa.Table.from_pylist(rows, schema=SCHEMA), source / "part.parquet")
     output = tmp_path / "output"
-    result = materialize_causal_states_linear(
+    result = materialize_checkpoint_states(
         str(source / "*.parquet"),
         output,
         time_checkpoints_ms=(250, 500),

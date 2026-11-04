@@ -782,7 +782,7 @@ _STAGES = (
 )
 
 
-def materialize_causal_states_linear(
+def materialize_checkpoint_states(
     source_glob: str,
     output: Path,
     *,

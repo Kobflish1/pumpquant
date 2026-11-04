@@ -1,4 +1,4 @@
-"""PumpQuant: execution-aware strategy research for Pump.fun token markets.
+"""PumpQuant: backtesting engine for Pump.fun, Solana's token-launch market.
 
 The package follows the path a trade idea takes, from raw chain data to a verdict:
 
@@ -10,7 +10,7 @@ The package follows the path a trade idea takes, from raw chain data to a verdic
     execution     replay entries and exits with latency, retries, fees and capital
     research      search strategies chronologically, with every trial recorded
     validation    statistical and economic gates a candidate must pass
-    audits        historical investigations, including the one that rejected M4
+    audits        the audit that retired the live rule, kept as evidence
     dashboard     the read-only research dashboard and its local preview
 
 ``pumpquant demo`` runs the whole path on generated data in about a second.

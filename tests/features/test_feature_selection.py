@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from pumpquant.features.pumpapi_selection import (
+from pumpquant.features.feature_selection import (
     select_information_distinct_features,
     threshold_partition_signature,
 )

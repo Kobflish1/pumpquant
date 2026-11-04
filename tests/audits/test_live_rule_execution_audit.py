@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pumpquant.audits.m4.post_stair import (
+from pumpquant.audits.live_rule.execution_audit import (
     distribution,
     replay_fee_skip_schedule,
     summarize_live_execution,

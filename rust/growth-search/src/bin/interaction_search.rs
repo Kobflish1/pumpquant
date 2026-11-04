@@ -462,12 +462,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input = PathBuf::from(
         std::env::args()
             .nth(1)
-            .ok_or("usage: pumpapi_interactions INPUT OUTPUT")?,
+            .ok_or("usage: interaction_search INPUT OUTPUT")?,
     );
     let output = PathBuf::from(
         std::env::args()
             .nth(2)
-            .ok_or("usage: pumpapi_interactions INPUT OUTPUT")?,
+            .ok_or("usage: interaction_search INPUT OUTPUT")?,
     );
     fs::create_dir_all(&output)?;
     let manifest: Manifest = serde_json::from_slice(&fs::read(input.join("manifest.json"))?)?;

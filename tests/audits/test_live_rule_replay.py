@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pumpquant.audits.m4.replay import (
+from pumpquant.audits.live_rule.replay import (
     ExecutionTemplate,
     ReplayPath,
     ReplayState,
