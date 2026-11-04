@@ -210,6 +210,7 @@ Its output on this repository:
 
 ## Documentation
 
+- [History](docs/HISTORY.md): how the project was built, from the first files in July 2026 to this release
 - [Architecture](docs/ARCHITECTURE.md): how the pipeline fits together
 - [Engineering decisions](docs/DECISIONS.md): the main design choices and their trade-offs
 - [Case study](docs/PARITY_CASE_STUDY.md): the audit that led to the rebuild
