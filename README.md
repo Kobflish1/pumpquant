@@ -34,16 +34,16 @@ PumpQuant replays every [Pump.fun](https://pump.fun) trade with the latency, fee
 
 <table>
   <tr>
-    <td width="50%" valign="top"><b>Exact pricing</b><br>Integer quotes that match the Pump and PumpSwap programs, rounding included.</td>
-    <td width="50%" valign="top"><b>No look-ahead</b><br>Every feature uses only data that had arrived when the decision was made.</td>
-  </tr>
-  <tr>
-    <td valign="top"><b>Realistic execution</b><br>Latency, retries, priority fees, failed transactions and shared capital.</td>
-    <td valign="top"><b>Walk-forward search</b><br>Chronological train and test periods, with every trial logged.</td>
-  </tr>
-  <tr>
-    <td valign="top"><b>Strict decoding</b><br>Solana transactions and program events, with a Rust decoder checked against the Python one.</td>
-    <td valign="top"><b>A dashboard for every run</b><br>A local, read-only view of each period and every trade.</td>
+    <td width="50%" valign="top">
+      <p><b>Exact pricing</b><br>Integer quotes that match the Pump and PumpSwap programs, rounding included.</p>
+      <p><b>Realistic execution</b><br>Latency, retries, priority fees, failed transactions and shared capital.</p>
+      <p><b>Strict decoding</b><br>Solana transactions and program events, with a Rust decoder checked against the Python one.</p>
+    </td>
+    <td width="50%" valign="top">
+      <p><b>No look-ahead</b><br>Every feature uses only data that had arrived when the decision was made.</p>
+      <p><b>Walk-forward search</b><br>Chronological train and test periods, with every trial logged.</p>
+      <p><b>A dashboard for every run</b><br>A local, read-only view of each period and every trade.</p>
+    </td>
   </tr>
 </table>
 
@@ -86,6 +86,8 @@ pumpquant preview
   <source media="(prefers-color-scheme: light)" srcset="assets/terminal-light.png">
   <img src="assets/terminal.png" width="100%" alt="Terminal session: the demo summary (1,080 bars, 16 candidates, 3 folds, 47 out-of-sample outcomes), each period's result, and the dashboard starting on port 8765.">
 </picture>
+
+<p align="center"><sub>The commands above, run on this repository.</sub></p>
 
 The demo generates 36 tokens, searches 16 versions of a momentum rule, and tests each period's best version on the tokens that launched next. `examples/periods.py` reads the same run from Python:
 
@@ -145,7 +147,7 @@ PumpQuant started as a live trading system. Its early stage was profitable, but 
   <img src="assets/audit.png" width="100%" alt="Take-profit exits captured: 34.4% in the backtest model, 12.2% (6 of 49) live. Time from decision to fill, live: 1.9 s median entry, 4.9 s 99th-percentile entry, about 71 s for the slowest exit.">
 </picture>
 
-<p align="center"><sub><i>Figures from the historical audit, reported in the <a href="docs/PARITY_CASE_STUDY.md">case study</a>. They are not reproduced by this package.</i></sub></p>
+<p align="center"><sub>Figures from the historical audit, reported in the <a href="docs/PARITY_CASE_STUDY.md">case study</a>. They are not reproduced by this package.</sub></p>
 
 Ten positions crossed their take-profit target, but only six exits were captured. Features had used trades from the whole decision second, and fill time had been measured from send rather than from the decision. The engine was rebuilt so none of these can recur. Under the corrected model the strategy lost money in all 16 test windows and was retired.
 
@@ -165,11 +167,18 @@ Ten positions crossed their take-profit target, but only six exits were captured
 
 ## Development
 
+One command runs every check: ruff, mypy in strict mode on 115 source files, the 489 Python tests, the demo, the 16 Rust tests, and a parity check of the Rust decoder against the Python one on 220 fixtures.
+
 ```sh
 make check
 ```
 
-This runs ruff, mypy in strict mode on 115 source files, the 489 Python tests, the 16 Rust tests, and a parity check of the Rust decoder against the Python one on 220 fixtures. [Status](docs/STATUS.md) lists the latest verified results, with exact versions.
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="assets/check-light.png">
+  <img src="assets/check.png" width="100%" alt="make check: ruff clean, 193 files formatted, mypy clean on 115 source files, 489 tests passed, Rust tests 9, 2, 3 and 2 passed, and decoder parity on 16 valid, 4 malformed and 200 differential fixtures.">
+</picture>
+
+<p align="center"><sub>An excerpt of a real run on 4 November 2026; progress and compiler lines are left out. <a href="docs/STATUS.md">Status</a> lists every verified result, with exact versions.</sub></p>
 
 ## Documentation
 
