@@ -29,8 +29,8 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/Kobflish1/pumpquant-preview"
-Documentation = "https://github.com/Kobflish1/pumpquant-preview/tree/main/docs"
+Repository = "https://github.com/Kobflish1/pumpquant"
+Documentation = "https://github.com/Kobflish1/pumpquant/tree/main/docs"
 
 [project.optional-dependencies]
 data = [
