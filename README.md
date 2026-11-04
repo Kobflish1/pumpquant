@@ -53,6 +53,8 @@ It is for developers and researchers who build trading strategies for Pump.fun a
 
 **Built with** Python 3.12+ and Rust. DuckDB and PyArrow handle the market data, NumPy and the arch library the statistics, and two Rust crates decode transactions and run the parallel strategy search. The dashboard is a small local web app, served by Python's standard library and drawn with TradingView's Lightweight Charts.
 
+**Data** PumpQuant works only on public Solana market data: the trades anyone can read from the chain. Wallet addresses are used only to measure trading flow, such as repeat buying or a creator selling, and never to identify people. It reads no personal or off-chain records, and this repository ships no real market data: the demo and the test fixtures are generated.
+
 ## Quick start
 
 PumpQuant needs Python 3.12 or later. Install it with the data and research extras, then run the two examples and the dashboard:

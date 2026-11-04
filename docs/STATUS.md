@@ -33,6 +33,10 @@ pumpquant preview
 
 PumpQuant requires Python 3.12 or later. On 3.11 the suite was run too: 506 of 508 tests pass, and the two that fail differ only in the last digit of a floating-point sum. Python 3.12 made `sum()` of floats more accurate, so the recorded demo output, which is checked byte for byte, is the 3.12 result.
 
+## Data
+
+PumpQuant processes only public on-chain market data from Solana. Wallet addresses, which are pseudonymous, are aggregated into market features (for example repeat-buyer flow or creator selling) and are never linked to people. The project reads no personal, account or off-chain records. This repository contains no real market data: the demo data, the test fixtures and the parity fixtures are generated, and the only addresses in it are public program IDs and test token mints.
+
 ## Scope
 
 This is a research source snapshot with a reproducible demo on generated data. The original project traded live; a later strategy failed, the assumptions behind its backtest were invalidated, and the candidates that followed were not validated. Nothing here is a validated strategy or authorised to trade.
