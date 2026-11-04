@@ -7,7 +7,7 @@ name = "pumpquant"
 version = "0.1.0"
 description = "Backtesting engine for Pump.fun, Solana's token-launch market"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 authors = [{ name = "Elias Hassari" }]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -15,7 +15,6 @@ classifiers = [
   "Operating System :: MacOS",
   "Operating System :: POSIX :: Linux",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
@@ -77,13 +76,16 @@ pythonpath = ["src", "."]
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+# Keep TypeAlias and TypeVar spellings: PEP 695 aliases are lazy runtime objects, and the
+# rewrite is not behaviour-preserving everywhere these names are used.
+ignore = ["UP040", "UP046", "UP047"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 strict = true
 mypy_path = "src"
 packages = ["pumpquant"]

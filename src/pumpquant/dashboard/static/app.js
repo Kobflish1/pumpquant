@@ -173,7 +173,7 @@ function ensureChart() {
   const lib = window.LightweightCharts;
   const chart = lib.createChart($("#chart"), {
     autoSize: true,
-    layout: { background: { type: "solid", color: "rgba(0,0,0,0)" }, textColor: css("--text-3"), fontFamily: "Mona Sans, system-ui, sans-serif", fontSize: 11 },
+    layout: { background: { type: "solid", color: "rgba(0,0,0,0)" }, textColor: css("--text-3"), fontFamily: "Mona Sans, system-ui, sans-serif", fontSize: 12 },
     grid: { vertLines: { visible: false }, horzLines: { color: css("--line") } },
     rightPriceScale: { borderVisible: false, mode: lib.PriceScaleMode?.Percentage ?? 2 },
     timeScale: { borderVisible: false, timeVisible: true, secondsVisible: true, tickMarkFormatter: chartTime },

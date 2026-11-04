@@ -24,6 +24,7 @@ test:
 
 demo:
 	$(PYTHON) examples/periods.py
+	$(PYTHON) examples/quote.py
 
 rust:
 	cargo fmt --check --manifest-path $(CARGO_DECODER)

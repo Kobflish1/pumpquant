@@ -71,7 +71,7 @@
 .result { font-size: 20px; font-weight: 620; letter-spacing: -.02em; }
 .chart { position: relative; height: 360px; margin: 16px -8px 0; }
 .story { min-height: 24px; margin-top: 14px; color: var(--text-2); font-size: 15px; }
-.legend { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--text-2); font-size: 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--text-2); font-size: 13px; }
 .legend i { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; }
 .legend .signal { background: var(--amber); } .legend .buy { background: var(--green); } .legend .sell { background: var(--red); }
 .attribution { margin-left: auto; color: var(--text-3); }
