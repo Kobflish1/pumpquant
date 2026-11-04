@@ -1,20 +1,20 @@
 """Read-only audit of a sealed signature inventory against full-block archives.
 
-The full-block archive deliberately keeps the exact JSON-RPC response body for
+The full-block archive keeps the exact JSON-RPC response body for
 every request attempt.  This module consumes those bytes without changing the
 archive: segment manifests and all files are verified with
-``pumpquant.block_archive.verify_block_segment`` before a wire body is read.
+``pumpquant.acquisition.block_archive.verify_block_segment`` before a wire body is read.
 The successful (last) response for a slot is decompressed when it is gzip
 encoded, decoded as JSON, and its ``result.transactions`` array is walked in
-the order returned by Solana.  A serialized transaction starts with a Solana
+the order returned by Solana.  A serialised transaction starts with a Solana
 shortvec signature count followed by 64-byte signatures; the first signature
 is converted to canonical base58 and compared with a sealed Parquet inventory.
 
 Only one wire body and one Arrow record batch are live at a time.  The
 inventory and the set of archived signatures are retained (roughly one string
 per transaction), while raw block payloads are never accumulated in memory.
-The report contains sorted values and canonical JSON serialization so rerunning
-an audit over the same immutable inputs is byte deterministic.
+The report contains sorted values and canonical JSON serialisation so rerunning
+an audit over the same inputs is byte deterministic.
 """
 
 from __future__ import annotations
@@ -38,6 +38,7 @@ from pumpquant.acquisition.signature_inventory import (
     load_signature_inventory_manifest,
     verify_signature_inventory,
 )
+from pumpquant.core.hashing import sha256_bytes
 
 try:  # pyarrow is optional for the rest of the package.
     import pyarrow.parquet as _pq
@@ -53,10 +54,6 @@ _SCHEMA_VERSION = 1
 
 class BlockInventoryAuditError(RuntimeError):
     """Raised when a sealed inventory or block archive cannot be audited."""
-
-
-def _sha256_bytes(value: bytes) -> str:
-    return hashlib.sha256(value).hexdigest()
 
 
 def _base58_encode(value: bytes) -> str:
@@ -119,7 +116,7 @@ def _first_signature(serialized: bytes) -> str:
 
 
 def _decompress_wire(payload: bytes) -> bytes:
-    # ``block_archive`` stores the exact HTTP body and intentionally does not
+    # ``block_archive`` stores the exact HTTP body and does not
     # persist provider headers.  gzip magic is therefore the only reliable
     # local indicator that decompression is required.
     if payload.startswith(b"\x1f\x8b"):
@@ -201,7 +198,7 @@ def _load_segments(roots: Sequence[str | Path] | str | Path) -> tuple[_Segment, 
             raise BlockInventoryAuditError(
                 f"block segment verification failed: {manifest_path.parent}: {error}"
             ) from error
-        manifest_hash = _sha256_bytes(payload_bytes)
+        manifest_hash = sha256_bytes(payload_bytes)
         segment_id = payload.get("segment_id")
         if not isinstance(segment_id, str) or not segment_id:
             raise BlockInventoryAuditError(f"block segment has no segment_id: {manifest_path}")
@@ -421,7 +418,7 @@ def _decode_transaction(value: Mapping[str, object]) -> tuple[str, str]:
     except (ValueError, TypeError, binascii.Error) as error:
         raise ValueError("transaction base64 is invalid") from error
     signature = _first_signature(serialized)
-    return signature, _sha256_bytes(serialized)
+    return signature, sha256_bytes(serialized)
 
 
 def _read_coverage(segment: _Segment) -> Iterable[Mapping[str, object]]:
@@ -472,6 +469,272 @@ class BlockInventoryAuditResult(Mapping[str, object]):
         return self.payload.get(key, default)
 
 
+def _segment_payload(segment: _Segment) -> dict[str, object]:
+    raw_counts = segment.payload.get("counts")
+    manifest_counts = (
+        {
+            key: value
+            for key, value in raw_counts.items()
+            if isinstance(key, str) and isinstance(value, int)
+        }
+        if isinstance(raw_counts, Mapping)
+        else {}
+    )
+    return {
+        "segment_id": segment.segment_id,
+        "segment_path": str(segment.path),
+        "manifest_sha256": segment.manifest_sha256,
+        "min_slot": _safe_int(segment.payload.get("min_slot"), "segment min_slot"),
+        "max_slot": _safe_int(segment.payload.get("max_slot"), "segment max_slot"),
+        "slot_count": _safe_int(segment.payload.get("slot_count"), "segment slot_count"),
+        "counts": dict(sorted(manifest_counts.items())),
+    }
+
+
+def _decode_failure(stats: _SlotStats, error_kind: str) -> _SlotStats:
+    stats.wire_decode_error_count = 1
+    stats.error_kind = stats.error_kind or error_kind
+    return stats
+
+
+def _audit_slot(segment: _Segment, raw: Mapping[str, object]) -> _SlotStats:
+    """Decode the last stored wire body for one slot and count what it holds."""
+    slot = _slot(raw.get("slot"))
+    status = raw.get("status")
+    if not isinstance(status, str) or not status:
+        raise BlockInventoryAuditError(f"coverage record for slot {slot} has no status")
+    raw_error_kind = raw.get("error_kind")
+    error_kind = raw_error_kind if isinstance(raw_error_kind, str) else None
+    stats = _SlotStats(slot, segment.segment_id, str(segment.path), status, error_kind)
+    body, attempts = _last_wire_body(segment.path, raw)
+    stats.wire_attempt_count = attempts
+    if body is None:
+        if status == "missing":
+            stats.null_result_count = 1
+        elif status in {"rpc_error", "transport_error", "protocol_error"}:
+            stats.rpc_error_count = 1
+        return stats
+    stats.final_body_sha256 = sha256_bytes(body)
+    try:
+        decoded_body = _decompress_wire(body)
+        response = _json_object(decoded_body, f"wire body for slot {slot}")
+    except (OSError, EOFError, ValueError, zlib.error, BlockInventoryAuditError) as error:
+        return _decode_failure(stats, type(error).__name__.casefold())
+    if response.get("jsonrpc") != "2.0" or response.get("id") != f"block-{slot}":
+        return _decode_failure(stats, "invalid_json_rpc_identity")
+    if ("result" in response) == ("error" in response):
+        return _decode_failure(stats, "invalid_json_rpc_shape")
+    if "error" in response:
+        stats.rpc_error_count = 1
+        return stats
+    result = response.get("result")
+    if result is None:
+        stats.null_result_count = 1
+        return stats
+    if not isinstance(result, Mapping):
+        return _decode_failure(stats, "non_object_result")
+    blockhash = result.get("blockhash")
+    if not isinstance(blockhash, str) or not blockhash:
+        return _decode_failure(stats, "missing_blockhash")
+    stats.blockhash = blockhash
+    try:
+        transactions = _transaction_values(result)
+    except BlockInventoryAuditError as error:
+        return _decode_failure(stats, str(error))
+    _count_transactions(stats, transactions)
+    return stats
+
+
+def _count_transactions(stats: _SlotStats, transactions: list[Mapping[str, object]]) -> None:
+    stats.transaction_count = len(transactions)
+    signature_order = hashlib.sha256()
+    transaction_body_order = hashlib.sha256()
+    for transaction in transactions:
+        if transaction.get("meta") is None:
+            stats.meta_null_count += 1
+        else:
+            stats.meta_present_count += 1
+        try:
+            signature, body_hash = _decode_transaction(transaction)
+        except ValueError:
+            stats.transaction_decode_error_count += 1
+            continue
+        assert stats.signatures is not None
+        assert stats.duplicate_signatures is not None
+        if signature in stats.signatures:
+            stats.duplicate_signatures.add(signature)
+        stats.signatures.add(signature)
+        signature_order.update(signature.encode("ascii"))
+        signature_order.update(b"\n")
+        transaction_body_order.update(bytes.fromhex(body_hash))
+    stats.transaction_signature_order_sha256 = signature_order.hexdigest()
+    stats.transaction_body_order_sha256 = transaction_body_order.hexdigest()
+
+
+def _audit_segment(segment: _Segment) -> list[_SlotStats]:
+    """Audit every slot in one segment and check the coverage matches its manifest."""
+    records = [_audit_slot(segment, raw) for raw in _read_coverage(segment)]
+    slots = [record.slot for record in records]
+    expected_slot_count = _safe_int(segment.payload.get("slot_count"), "segment slot_count")
+    if len(slots) != expected_slot_count:
+        raise BlockInventoryAuditError(
+            f"coverage slot count differs from segment manifest: {segment.path}"
+        )
+    if slots and (
+        min(slots) != _safe_int(segment.payload.get("min_slot"), "segment min_slot")
+        or max(slots) != _safe_int(segment.payload.get("max_slot"), "segment max_slot")
+        or len(set(slots)) != len(slots)
+    ):
+        raise BlockInventoryAuditError(
+            f"coverage slot range or uniqueness differs from segment manifest: {segment.path}"
+        )
+    return records
+
+
+def _valid_found(value: _SlotStats) -> bool:
+    return (
+        value.status == "found"
+        and value.wire_decode_error_count == 0
+        and value.rpc_error_count == 0
+        and value.null_result_count == 0
+        and value.transaction_decode_error_count == 0
+        and value.final_body_sha256 is not None
+        and value.blockhash is not None
+        and value.transaction_signature_order_sha256 is not None
+        and value.transaction_body_order_sha256 is not None
+    )
+
+
+def _found_fingerprint(value: _SlotStats) -> tuple[object, ...]:
+    return (
+        value.blockhash,
+        value.transaction_count,
+        value.transaction_signature_order_sha256,
+        value.transaction_body_order_sha256,
+    )
+
+
+@dataclass(slots=True)
+class _Reconciled:
+    records: list[_SlotStats]
+    archived_signatures: set[str]
+    repeated_signatures: set[str]
+    conflicting_signatures: set[str]
+    physical_found_occurrences: int
+    slot_duplicate_count: int
+    slot_conflict_count: int
+
+
+def _reconcile(slot_records: list[_SlotStats]) -> _Reconciled:
+    """Choose one canonical record per slot across segments.
+
+    A retry can leave a missing/error/skipped record in one segment and a found record in
+    another. Among several valid found records, deterministic segment ordering chooses the
+    first; a conflict is material only when the blockhash or transaction signatures differ,
+    so identical repeated blocks are harmless duplicates.
+    """
+    slot_records.sort(key=lambda value: (value.slot, value.segment_id, value.segment_path))
+    by_slot: defaultdict[int, list[_SlotStats]] = defaultdict(list)
+    for value in slot_records:
+        by_slot[value.slot].append(value)
+    result = _Reconciled([], set(), set(), set(), 0, 0, 0)
+    for slot in sorted(by_slot):
+        values = by_slot[slot]
+        found = [value for value in values if _valid_found(value)]
+        canonical = found[0] if found else values[0]
+        result.physical_found_occurrences += sum(value.transaction_count for value in found)
+        for value in found:
+            result.repeated_signatures.update(value.duplicate_signatures or set())
+            result.conflicting_signatures.update(value.duplicate_signatures or set())
+        if len(values) > 1:
+            result.slot_duplicate_count += len(values) - 1
+        if len(found) > 1:
+            fingerprints = {_found_fingerprint(item) for item in found}
+            prior_signatures: set[str] = set()
+            for item in found:
+                item_signatures = item.signatures or set()
+                overlap = prior_signatures & item_signatures
+                result.repeated_signatures.update(overlap)
+                if _found_fingerprint(item) != _found_fingerprint(found[0]):
+                    result.conflicting_signatures.update(overlap)
+                prior_signatures.update(item_signatures)
+            if len(fingerprints) > 1:
+                result.slot_conflict_count += 1
+                canonical.error_kind = canonical.error_kind or "conflicting_found_records"
+        canonical.record_count = len(values)
+        canonical.duplicate_record_count = max(0, len(values) - 1)
+        canonical.material_conflict = bool(
+            len(found) > 1 and len({_found_fingerprint(item) for item in found}) > 1
+        )
+        canonical.valid_found_record = _valid_found(canonical)
+        result.records.append(canonical)
+    # One canonical signature set. Retry duplicates are counted per slot above, without
+    # keeping per-signature maps of slots, which matters for million-transaction hours.
+    for record in result.records:
+        if not _valid_found(record):
+            continue
+        for signature in record.signatures or set():
+            if signature in result.archived_signatures:
+                result.repeated_signatures.add(signature)
+                result.conflicting_signatures.add(signature)
+            result.archived_signatures.add(signature)
+    return result
+
+
+def _totals(records: list[_SlotStats]) -> dict[str, object]:
+    status_counts = Counter(value.status for value in records)
+    totals: dict[str, object] = {
+        "slot_count": len(records),
+        "found_slot_count": status_counts.get("found", 0),
+        "valid_found_slot_count": sum(1 for value in records if value.valid_found_record),
+        "skipped_slot_count": status_counts.get("skipped", 0),
+        "missing_slot_count": status_counts.get("missing", 0),
+        "rpc_error_slot_count": status_counts.get("rpc_error", 0),
+        "transport_error_slot_count": status_counts.get("transport_error", 0),
+        "protocol_error_slot_count": status_counts.get("protocol_error", 0),
+        "transaction_count": sum(value.transaction_count for value in records),
+        "meta_present_count": sum(value.meta_present_count for value in records),
+        "meta_null_count": sum(value.meta_null_count for value in records),
+        "null_result_slot_count": sum(value.null_result_count for value in records),
+        "rpc_error_count": sum(value.rpc_error_count for value in records),
+        "wire_decode_error_count": sum(value.wire_decode_error_count for value in records),
+        "transaction_decode_error_count": sum(
+            value.transaction_decode_error_count for value in records
+        ),
+        "error_count": sum(
+            int(
+                value.status in {"rpc_error", "transport_error", "protocol_error"}
+                or value.wire_decode_error_count > 0
+                or value.transaction_decode_error_count > 0
+            )
+            for value in records
+        ),
+    }
+    totals["tx_count"] = totals["transaction_count"]
+    totals["meta_count"] = totals["meta_present_count"]
+    return totals
+
+
+def _found_slot_payloads(records: list[_SlotStats]) -> list[dict[str, object]]:
+    return [
+        {
+            "slot": value.slot,
+            "blockhash": value.blockhash,
+            "transaction_signature_sha256": sha256_bytes(
+                "\n".join(sorted(value.signatures or set())).encode("ascii")
+            ),
+            "transaction_signature_order_sha256": (value.transaction_signature_order_sha256),
+            "transaction_body_order_sha256": value.transaction_body_order_sha256,
+        }
+        for value in records
+        if _valid_found(value)
+    ]
+
+
+def _signatures_hash(values: Sequence[str]) -> str:
+    return sha256_bytes("\n".join(values).encode("ascii"))
+
+
 def audit_block_inventory(
     inventory: str | Path,
     archive_roots: Sequence[str | Path] | str | Path,
@@ -492,272 +755,20 @@ def audit_block_inventory(
         raise ValueError("signature_sample_size must be a non-negative integer")
     inventory_signatures, inventory_manifest = _load_inventory(inventory, batch_size=batch_size)
     segments = _load_segments(archive_roots)
-
-    slot_records: list[_SlotStats] = []
-    segment_payloads: list[dict[str, object]] = []
-
-    for segment in segments:
-        raw_counts = segment.payload.get("counts")
-        manifest_counts = (
-            {
-                key: value
-                for key, value in raw_counts.items()
-                if isinstance(key, str) and isinstance(value, int)
-            }
-            if isinstance(raw_counts, Mapping)
-            else {}
-        )
-        segment_payloads.append(
-            {
-                "segment_id": segment.segment_id,
-                "segment_path": str(segment.path),
-                "manifest_sha256": segment.manifest_sha256,
-                "min_slot": _safe_int(segment.payload.get("min_slot"), "segment min_slot"),
-                "max_slot": _safe_int(segment.payload.get("max_slot"), "segment max_slot"),
-                "slot_count": _safe_int(segment.payload.get("slot_count"), "segment slot_count"),
-                "counts": dict(sorted(manifest_counts.items())),
-            }
-        )
-        segment_slots: list[int] = []
-        for raw in _read_coverage(segment):
-            slot = _slot(raw.get("slot"))
-            segment_slots.append(slot)
-            status = raw.get("status")
-            if not isinstance(status, str) or not status:
-                raise BlockInventoryAuditError(f"coverage record for slot {slot} has no status")
-            raw_error_kind = raw.get("error_kind")
-            error_kind = raw_error_kind if isinstance(raw_error_kind, str) else None
-            stats = _SlotStats(
-                slot,
-                segment.segment_id,
-                str(segment.path),
-                status,
-                error_kind,
-            )
-            body, attempts = _last_wire_body(segment.path, raw)
-            stats.wire_attempt_count = attempts
-            if body is None:
-                if status == "missing":
-                    stats.null_result_count = 1
-                elif status in {"rpc_error", "transport_error", "protocol_error"}:
-                    stats.rpc_error_count = 1
-                slot_records.append(stats)
-                continue
-            stats.final_body_sha256 = _sha256_bytes(body)
-            try:
-                decoded_body = _decompress_wire(body)
-                response = _json_object(decoded_body, f"wire body for slot {slot}")
-            except (OSError, EOFError, ValueError, zlib.error, BlockInventoryAuditError) as error:
-                stats.wire_decode_error_count = 1
-                stats.error_kind = stats.error_kind or type(error).__name__.casefold()
-                slot_records.append(stats)
-                continue
-
-            if response.get("jsonrpc") != "2.0" or response.get("id") != f"block-{slot}":
-                stats.wire_decode_error_count = 1
-                stats.error_kind = stats.error_kind or "invalid_json_rpc_identity"
-                slot_records.append(stats)
-                continue
-            if ("result" in response) == ("error" in response):
-                stats.wire_decode_error_count = 1
-                stats.error_kind = stats.error_kind or "invalid_json_rpc_shape"
-                slot_records.append(stats)
-                continue
-            if "error" in response:
-                stats.rpc_error_count = 1
-                slot_records.append(stats)
-                continue
-            result = response.get("result")
-            if result is None:
-                stats.null_result_count = 1
-                slot_records.append(stats)
-                continue
-            if not isinstance(result, Mapping):
-                stats.wire_decode_error_count = 1
-                stats.error_kind = stats.error_kind or "non_object_result"
-                slot_records.append(stats)
-                continue
-            blockhash = result.get("blockhash")
-            if not isinstance(blockhash, str) or not blockhash:
-                stats.wire_decode_error_count = 1
-                stats.error_kind = stats.error_kind or "missing_blockhash"
-                slot_records.append(stats)
-                continue
-            stats.blockhash = blockhash
-            try:
-                transactions = _transaction_values(result)
-            except BlockInventoryAuditError as error:
-                stats.wire_decode_error_count = 1
-                stats.error_kind = stats.error_kind or str(error)
-                slot_records.append(stats)
-                continue
-
-            stats.transaction_count = len(transactions)
-            signature_order = hashlib.sha256()
-            transaction_body_order = hashlib.sha256()
-            for transaction in transactions:
-                if transaction.get("meta") is None:
-                    stats.meta_null_count += 1
-                else:
-                    stats.meta_present_count += 1
-                try:
-                    signature, body_hash = _decode_transaction(transaction)
-                except ValueError:
-                    stats.transaction_decode_error_count += 1
-                    continue
-                assert stats.signatures is not None
-                assert stats.duplicate_signatures is not None
-                if signature in stats.signatures:
-                    stats.duplicate_signatures.add(signature)
-                stats.signatures.add(signature)
-                signature_order.update(signature.encode("ascii"))
-                signature_order.update(b"\n")
-                transaction_body_order.update(bytes.fromhex(body_hash))
-            stats.transaction_signature_order_sha256 = signature_order.hexdigest()
-            stats.transaction_body_order_sha256 = transaction_body_order.hexdigest()
-            slot_records.append(stats)
-        expected_slot_count = _safe_int(segment.payload.get("slot_count"), "segment slot_count")
-        if len(segment_slots) != expected_slot_count:
-            raise BlockInventoryAuditError(
-                f"coverage slot count differs from segment manifest: {segment.path}"
-            )
-        if segment_slots and (
-            min(segment_slots) != _safe_int(segment.payload.get("min_slot"), "segment min_slot")
-            or max(segment_slots) != _safe_int(segment.payload.get("max_slot"), "segment max_slot")
-            or len(set(segment_slots)) != len(segment_slots)
-        ):
-            raise BlockInventoryAuditError(
-                f"coverage slot range or uniqueness differs from segment manifest: {segment.path}"
-            )
-
-    slot_records.sort(key=lambda value: (value.slot, value.segment_id, value.segment_path))
-    by_slot: defaultdict[int, list[_SlotStats]] = defaultdict(list)
-    for value in slot_records:
-        by_slot[value.slot].append(value)
-
-    def valid_found(value: _SlotStats) -> bool:
-        return (
-            value.status == "found"
-            and value.wire_decode_error_count == 0
-            and value.rpc_error_count == 0
-            and value.null_result_count == 0
-            and value.transaction_decode_error_count == 0
-            and value.final_body_sha256 is not None
-            and value.blockhash is not None
-            and value.transaction_signature_order_sha256 is not None
-            and value.transaction_body_order_sha256 is not None
-        )
-
-    def found_fingerprint(value: _SlotStats) -> tuple[object, ...]:
-        return (
-            value.blockhash,
-            value.transaction_count,
-            value.transaction_signature_order_sha256,
-            value.transaction_body_order_sha256,
-        )
-
-    # A retry can leave a missing/error/skipped record in one segment and a
-    # found record in another.  Reconcile those records before computing the
-    # canonical archive set.  Among multiple valid found records, deterministic
-    # segment ordering chooses the first one; a conflict is only material when
-    # the blockhash or transaction-signature set differs.  Identical repeated
-    # blocks are therefore harmless duplicates, not conflicts.
-    canonical_records: list[_SlotStats] = []
-    slot_conflict_count = 0
-    slot_duplicate_count = 0
-    physical_found_occurrences = 0
-    repeated_signatures: set[str] = set()
-    conflicting_signatures: set[str] = set()
-    for slot in sorted(by_slot):
-        values = by_slot[slot]
-        found = [value for value in values if valid_found(value)]
-        canonical = found[0] if found else values[0]
-        physical_found_occurrences += sum(value.transaction_count for value in found)
-        for value in found:
-            repeated_signatures.update(value.duplicate_signatures or set())
-            conflicting_signatures.update(value.duplicate_signatures or set())
-        if len(values) > 1:
-            slot_duplicate_count += len(values) - 1
-        if len(found) > 1:
-            fingerprints = {found_fingerprint(item) for item in found}
-            prior_signatures: set[str] = set()
-            for item in found:
-                item_signatures = item.signatures or set()
-                overlap = prior_signatures & item_signatures
-                repeated_signatures.update(overlap)
-                if found_fingerprint(item) != found_fingerprint(found[0]):
-                    conflicting_signatures.update(overlap)
-                prior_signatures.update(item_signatures)
-            if len(fingerprints) > 1:
-                slot_conflict_count += 1
-                canonical.error_kind = canonical.error_kind or "conflicting_found_records"
-        canonical.record_count = len(values)
-        canonical.duplicate_record_count = max(0, len(values) - 1)
-        canonical.material_conflict = bool(
-            len(found) > 1 and len({found_fingerprint(item) for item in found}) > 1
-        )
-        canonical.valid_found_record = valid_found(canonical)
-        # Keep the canonical record object and attach reconciliation metadata
-        # for aggregation below.  ``_SlotStats.payload`` remains the compact
-        # stable shape used by callers that only need per-slot counts.
-        canonical_records.append(canonical)
-
-    # Keep one canonical signature set. Physical retry duplicates are counted
-    # per slot above without retaining global per-signature dictionaries of
-    # slots and serialized-body sets, which matters for million-tx hours.
-    archived_signatures: set[str] = set()
-    for record in canonical_records:
-        if not valid_found(record):
-            continue
-        for signature in record.signatures or set():
-            if signature in archived_signatures:
-                repeated_signatures.add(signature)
-                conflicting_signatures.add(signature)
-            archived_signatures.add(signature)
-
-    archived_occurrences = physical_found_occurrences
+    segment_payloads = [_segment_payload(segment) for segment in segments]
+    reconciled = _reconcile([record for segment in segments for record in _audit_segment(segment)])
+    canonical_records = reconciled.records
+    archived_signatures = reconciled.archived_signatures
+    archived_occurrences = reconciled.physical_found_occurrences
     duplicate_occurrences = max(0, archived_occurrences - len(archived_signatures))
-    duplicate_signature_count = len(repeated_signatures)
-    conflict_signature_count = len(conflicting_signatures)
+    duplicate_signature_count = len(reconciled.repeated_signatures)
+    conflict_signature_count = len(reconciled.conflicting_signatures)
+    slot_duplicate_count = reconciled.slot_duplicate_count
+    slot_conflict_count = reconciled.slot_conflict_count
 
-    status_counts = Counter(value.status for value in canonical_records)
-    totals: dict[str, object] = {
-        "slot_count": len(canonical_records),
-        "found_slot_count": status_counts.get("found", 0),
-        "valid_found_slot_count": sum(1 for value in canonical_records if value.valid_found_record),
-        "skipped_slot_count": status_counts.get("skipped", 0),
-        "missing_slot_count": status_counts.get("missing", 0),
-        "rpc_error_slot_count": status_counts.get("rpc_error", 0),
-        "transport_error_slot_count": status_counts.get("transport_error", 0),
-        "protocol_error_slot_count": status_counts.get("protocol_error", 0),
-        "transaction_count": sum(value.transaction_count for value in canonical_records),
-        "meta_present_count": sum(value.meta_present_count for value in canonical_records),
-        "meta_null_count": sum(value.meta_null_count for value in canonical_records),
-        "null_result_slot_count": sum(value.null_result_count for value in canonical_records),
-        "rpc_error_count": sum(value.rpc_error_count for value in canonical_records),
-        "wire_decode_error_count": sum(
-            value.wire_decode_error_count for value in canonical_records
-        ),
-        "transaction_decode_error_count": sum(
-            value.transaction_decode_error_count for value in canonical_records
-        ),
-        "error_count": sum(
-            int(
-                value.status in {"rpc_error", "transport_error", "protocol_error"}
-                or value.wire_decode_error_count > 0
-                or value.transaction_decode_error_count > 0
-            )
-            for value in canonical_records
-        ),
-    }
-    totals["tx_count"] = totals["transaction_count"]
-    totals["meta_count"] = totals["meta_present_count"]
     intersection = sorted(inventory_signatures & archived_signatures)
     missing = sorted(inventory_signatures - archived_signatures)
     extra = sorted(archived_signatures - inventory_signatures)
-
-    def value_hash(values: Sequence[str]) -> str:
-        return _sha256_bytes("\n".join(values).encode("ascii"))
 
     def value_sample(values: Sequence[str]) -> list[str]:
         if signature_sample_size == 0:
@@ -772,26 +783,13 @@ def audit_block_inventory(
     archived_sorted = sorted(archived_signatures)
     slot_payloads = [value.payload() for value in canonical_records]
     slot_payload_by_slot = {str(value.slot): value.payload() for value in canonical_records}
-    found_slots = sorted(value.slot for value in canonical_records if valid_found(value))
-    found_slots_sha256 = _sha256_bytes("\n".join(map(str, found_slots)).encode("ascii"))
-    found_slot_payloads = [
-        {
-            "slot": value.slot,
-            "blockhash": value.blockhash,
-            "transaction_signature_sha256": _sha256_bytes(
-                "\n".join(sorted(value.signatures or set())).encode("ascii")
-            ),
-            "transaction_signature_order_sha256": (value.transaction_signature_order_sha256),
-            "transaction_body_order_sha256": value.transaction_body_order_sha256,
-        }
-        for value in canonical_records
-        if valid_found(value)
-    ]
-    found_slot_blockhashes_sha256 = _sha256_bytes(
+    found_slots = sorted(value.slot for value in canonical_records if _valid_found(value))
+    found_slots_sha256 = sha256_bytes("\n".join(map(str, found_slots)).encode("ascii"))
+    found_slot_blockhashes_sha256 = sha256_bytes(
         "\n".join(
             f"{value.slot}\t{value.blockhash or ''}"
             for value in canonical_records
-            if valid_found(value)
+            if _valid_found(value)
         ).encode("utf-8")
     )
     duplicate_payload = {
@@ -832,19 +830,19 @@ def audit_block_inventory(
         "found_slots": found_slots,
         "found_slots_sha256": found_slots_sha256,
         "found_slot_blockhashes_sha256": found_slot_blockhashes_sha256,
-        "found_slot_hashes": found_slot_payloads,
+        "found_slot_hashes": _found_slot_payloads(canonical_records),
         "signatures": {
             "inventory_count": len(inventory_signatures),
-            "inventory_sha256": value_hash(sorted(inventory_signatures)),
+            "inventory_sha256": _signatures_hash(sorted(inventory_signatures)),
             "archived_unique_count": len(archived_signatures),
-            "archived_unique_sha256": value_hash(archived_sorted),
+            "archived_unique_sha256": _signatures_hash(archived_sorted),
             "archived_occurrence_count": archived_occurrences,
             "intersection_count": len(intersection),
             "missing_count": len(missing),
             "extra_count": len(extra),
-            "intersection_sha256": value_hash(intersection),
-            "missing_sha256": value_hash(missing),
-            "extra_sha256": value_hash(extra),
+            "intersection_sha256": _signatures_hash(intersection),
+            "missing_sha256": _signatures_hash(missing),
+            "extra_sha256": _signatures_hash(extra),
             "intersection": intersection_sample,
             "missing": missing_sample,
             "extra": extra_sample,
@@ -855,19 +853,19 @@ def audit_block_inventory(
         },
         "inventory_signature_count": len(inventory_signatures),
         "inventory_unique_signature_count": len(inventory_signatures),
-        "inventory_signatures_sha256": value_hash(sorted(inventory_signatures)),
+        "inventory_signatures_sha256": _signatures_hash(sorted(inventory_signatures)),
         "archived_signature_count": len(archived_signatures),
         "archived_unique_signature_count": len(archived_signatures),
-        "archived_signatures_sha256": value_hash(archived_sorted),
+        "archived_signatures_sha256": _signatures_hash(archived_sorted),
         "intersection_count": len(intersection),
         "inventory_intersection_count": len(intersection),
         "missing_count": len(missing),
         "inventory_missing_count": len(missing),
         "extra_count": len(extra),
         "inventory_extra_count": len(extra),
-        "intersection_sha256": value_hash(intersection),
-        "missing_sha256": value_hash(missing),
-        "extra_sha256": value_hash(extra),
+        "intersection_sha256": _signatures_hash(intersection),
+        "missing_sha256": _signatures_hash(missing),
+        "extra_sha256": _signatures_hash(extra),
         "intersection_signatures": (
             intersection if include_signature_details else intersection_sample
         ),
@@ -877,7 +875,7 @@ def audit_block_inventory(
         "conflicts": conflict_payload,
         "duplicate_count": duplicate_occurrences,
         "conflict_count": conflict_signature_count + slot_conflict_count,
-        "totals": totals,
+        "totals": _totals(canonical_records),
         "per_slot": slot_payloads,
         "slot_statistics": slot_payloads,
         "per_slot_by_slot": slot_payload_by_slot,
@@ -889,15 +887,6 @@ def audit_block_inventory(
         signatures_payload["missing"] = missing
         signatures_payload["extra"] = extra
     return BlockInventoryAuditResult(payload)
-
-
-# Verb aliases keep the API discoverable for callers that naturally use
-# ``audit_block_archive`` or ``run_block_inventory_audit``.
-audit_block_archive = audit_block_inventory
-audit_archived_inventory = audit_block_inventory
-run_block_inventory_audit = audit_block_inventory
-audit_inventory_against_blocks = audit_block_inventory
-compare_inventory_to_blocks = audit_block_inventory
 
 
 def audit_block_inventory_json(
@@ -923,11 +912,6 @@ def audit_block_inventory_json(
 __all__ = [
     "BlockInventoryAuditError",
     "BlockInventoryAuditResult",
-    "audit_archived_inventory",
-    "audit_block_archive",
     "audit_block_inventory",
     "audit_block_inventory_json",
-    "audit_inventory_against_blocks",
-    "compare_inventory_to_blocks",
-    "run_block_inventory_audit",
 ]

@@ -2,7 +2,7 @@
 
 The caller must supply the historical protocol/creator fee tier and whether the
 creator fee applies. Dynamic tier selection belongs to the versioned state
-decoder. PumpSwap has different component accounting and is intentionally not
+decoder. PumpSwap has different component accounting and is not
 represented by these functions.
 """
 

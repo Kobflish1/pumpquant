@@ -53,12 +53,12 @@ class BigQueryApprovalError(ValueError):
 
 
 class BigQueryApprovalValidationError(BigQueryApprovalError):
-    """Explicit name for callers that want to distinguish validation errors."""
+    """Name for callers that want to distinguish validation errors."""
 
 
 @dataclass(frozen=True, slots=True)
 class ApprovedDay:
-    """One validated daily estimate and its freshly recomputed immutable plan."""
+    """One validated daily estimate and its freshly recomputed plan."""
 
     start: str
     end: str
@@ -107,19 +107,6 @@ class BigQueryApproval:
     def selected_window(self) -> tuple[str, str]:
         """Return the selected half-open window as canonical UTC dates."""
         return self.selected_start, self.selected_end
-
-    @property
-    def window(self) -> tuple[str, str]:
-        """Short alias for :attr:`selected_window`."""
-        return self.selected_window
-
-
-# A descriptive alias is convenient for callers that do not need the shorter
-# class name.  Keep it as an alias (rather than a second class) for isinstance
-# compatibility.
-ApprovalValidationResult = BigQueryApproval
-ApprovalArtifactError = BigQueryApprovalError
-ApprovalArtifactValidationError = BigQueryApprovalValidationError
 
 
 def _fail(message: str) -> BigQueryApprovalValidationError:
@@ -268,7 +255,7 @@ def _validate_rejected_window(
 
 
 def _validate_plan(plan: QueryPlan, *, start: str, end: str, daily_cap: int) -> None:
-    """Validate all immutable plan components, not only the derived hash."""
+    """Validate all plan components, not only the derived hash."""
     if plan.name != APPROVAL_PLAN_NAME:
         raise _fail(f"daily plan has unexpected name {plan.name!r}")
     if plan.maximum_bytes_billed != daily_cap:
@@ -522,11 +509,6 @@ def load_approval_artifact(
 
 
 # Names suitable for integrations that use a ``bigquery_approval`` prefix.
-validate_bigquery_approval = validate_approval_artifact
-load_bigquery_approval = load_approval_artifact
-validate_bigquery_approval_artifact = validate_approval_artifact
-load_bigquery_approval_artifact = load_approval_artifact
-validate_approval_file = load_approval_artifact
 
 
 __all__ = [
@@ -538,20 +520,12 @@ __all__ = [
     "APPROVAL_SOURCE_DATASET",
     "APPROVAL_SOURCE_LOCATION",
     "APPROVAL_STATUS",
-    "ApprovalArtifactError",
-    "ApprovalArtifactValidationError",
     "APPROVED_WINDOW_END",
     "APPROVED_WINDOW_START",
-    "ApprovalValidationResult",
     "ApprovedDay",
     "BigQueryApproval",
     "BigQueryApprovalError",
     "BigQueryApprovalValidationError",
     "load_approval_artifact",
-    "load_bigquery_approval",
-    "load_bigquery_approval_artifact",
-    "validate_approval_file",
     "validate_approval_artifact",
-    "validate_bigquery_approval",
-    "validate_bigquery_approval_artifact",
 ]

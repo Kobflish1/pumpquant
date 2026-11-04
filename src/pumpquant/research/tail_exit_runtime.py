@@ -1,13 +1,12 @@
 """Durable execution primitives for the v2 tail/exit research runner.
 
-This module deliberately contains no research or DuckDB logic. It owns the
-immutable work plan, restart checkpoints, weighted progress, ETA estimation,
+This module contains no research or DuckDB logic. It owns the
+work plan, restart checkpoints, weighted progress, ETA estimation,
 and manifest-last current-state publication used by the worker and dashboard.
 """
 
 from __future__ import annotations
 
-import hashlib
 import json
 import math
 import os
@@ -18,7 +17,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from statistics import median
 
-from pumpquant.core.hashing import sha256_file
+from pumpquant.core.hashing import canonical_json, sha256_bytes, sha256_file
 
 RUNTIME_VERSION = 2
 CHECKPOINT_MARKER = ".pumpquant-tail-exit-v2-checkpoint.json"
@@ -28,16 +27,6 @@ _UNIT_ID = re.compile(r"^[a-z][a-z0-9_.-]*$")
 
 class TailExitRuntimeError(RuntimeError):
     """A v2 plan, checkpoint, or publication invariant failed."""
-
-
-def canonical_json(value: object) -> bytes:
-    return (
-        json.dumps(value, allow_nan=False, sort_keys=True, separators=(",", ":")).encode() + b"\n"
-    )
-
-
-def sha256_bytes(value: bytes) -> str:
-    return hashlib.sha256(value).hexdigest()
 
 
 def _atomic_replace(path: Path, body: bytes, token: str) -> None:
@@ -471,7 +460,6 @@ __all__ = [
     "TailExitRuntimeError",
     "WorkPlan",
     "WorkUnit",
-    "canonical_json",
     "file_record",
     "process_rss_bytes",
     "sha256_file",

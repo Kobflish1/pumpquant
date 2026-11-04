@@ -1,7 +1,7 @@
 """Append-only telemetry and summaries for live Solana execution attempts.
 
-The ledger deliberately stores public transaction evidence only. Secret keys,
-mnemonics, serialized signed transactions, and raw key material are rejected.
+The ledger stores public transaction evidence only. Secret keys,
+mnemonics, serialised signed transactions, and raw key material are rejected.
 """
 
 from __future__ import annotations

@@ -1,1 +1,1 @@
-"""Provider-backed acquisition, immutable archives, and integrity audits."""
+"""Provider-backed acquisition, archives, and integrity audits."""

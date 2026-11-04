@@ -1,16 +1,15 @@
-"""Verified one-row-per-launch Pump/PumpSwap lifecycle catalog.
+"""Verified one-row-per-launch Pump/PumpSwap lifecycle catalogue.
 
 The lifecycle sidecar is compact but event-shaped.  The opportunity atlas needs
-an unconditional launch denominator with exact supply and explicit completion,
+an unconditional launch denominator with exact supply and completion,
 migration, and pool anchors.  This module verifies the sealed sidecars through
 the existing lifecycle reader, validates global identity/order, and publishes a
-small immutable Parquet catalog without reading swap payloads.
+small Parquet catalogue without reading swap payloads.
 """
 
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import shutil
 import tempfile
@@ -19,7 +18,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, cast
 
-from pumpquant.core.hashing import sha256_file
+from pumpquant.core.hashing import canonical_json, sha256_file
 from pumpquant.features.lifecycle import (
     DEFAULT_BATCH_SIZE,
     LifecycleFeatureError,
@@ -120,12 +119,6 @@ def _schema() -> Any:
 
 
 CATALOG_SCHEMA = _schema() if pa is not None else None
-
-
-def _canonical_json(value: object) -> bytes:
-    return (
-        json.dumps(value, allow_nan=False, separators=(",", ":"), sort_keys=True) + "\n"
-    ).encode("utf-8")
 
 
 def _write_bytes(path: Path, body: bytes) -> None:
@@ -482,7 +475,7 @@ def materialize_lifecycle_catalog(
             "pool_count": sum(mint in pools for mint in launches),
             "orphan_anchor_counts": orphan_counts,
         }
-        audit_body = _canonical_json(audit)
+        audit_body = canonical_json(audit)
         _write_bytes(staging / "audit.json", audit_body)
         manifest = {
             "kind": KIND,
@@ -528,7 +521,7 @@ def materialize_lifecycle_catalog(
                 "every lifecycle source byte is manifest-verified before use",
             ],
         }
-        _write_bytes(staging / "manifest.json", _canonical_json(manifest))
+        _write_bytes(staging / "manifest.json", canonical_json(manifest))
         (staging / "identity.sqlite").unlink(missing_ok=True)
         os.replace(staging, target)
         parent_fd = os.open(target.parent, os.O_RDONLY)

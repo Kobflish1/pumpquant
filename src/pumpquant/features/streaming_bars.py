@@ -1,10 +1,10 @@
-"""Verified k-way streaming merge of normalized swap chunks into bars.
+"""Verified k-way streaming merge of normalised swap chunks into bars.
 
-Normalized swap datasets are commonly published as several independently
+Normalised swap datasets are commonly published as several independently
 sealed directories.  This module verifies every directory before opening its
 rows, performs a deterministic merge on the complete
 ``SwapEvent.ordering_key``, and feeds that one global stream to
-:func:`pumpquant.features.iter_bars_chain_ordered`.
+:func:`pumpquant.features.bars.iter_bars_chain_ordered`.
 
 The merge keeps one bounded decoded batch per input chunk in a heap.  Duplicate
 event IDs use a temporary SQLite index and source-order regressions are checked
@@ -47,7 +47,7 @@ class ChunkBarsError(RuntimeError):
 
 @dataclass(frozen=True, slots=True)
 class VerifiedSwapChunk:
-    """Metadata for one normalized swap chunk after manifest verification."""
+    """Metadata for one normalised swap chunk after manifest verification."""
 
     root: Path
     manifest_path: Path
@@ -129,7 +129,7 @@ def _safe_relative(root: Path, value: object, label: str) -> Path:
 
 
 def _file_entries(manifest: Mapping[str, object]) -> dict[str, Mapping[str, object]]:
-    """Normalize the mapping/list file-inventory forms used by manifests."""
+    """Normalise the mapping/list file-inventory forms used by manifests."""
 
     raw = manifest.get("files")
     entries: dict[str, Mapping[str, object]] = {}
@@ -252,7 +252,7 @@ def _resolve_chunk(value: str | Path) -> VerifiedSwapChunk:
 def verify_normalized_chunks(
     chunks: Sequence[str | Path] | str | Path,
 ) -> tuple[VerifiedSwapChunk, ...]:
-    """Verify and return unique sealed normalized swap chunks.
+    """Verify and return unique sealed normalised swap chunks.
 
     Verification includes manifest kind/version, every inventoried file's byte
     count and SHA-256, Parquet row count, and (when present) schema hash.  No
@@ -332,7 +332,7 @@ def _iter_merged_verified_swap_events(
         heap: list[tuple[tuple[int, int, int, str], int, SwapEvent]] = []
         with tempfile.TemporaryDirectory(prefix="pumpquant-chunk-merge-") as directory:
             connection = sqlite3.connect(Path(directory) / "event_ids.sqlite3")
-            # The index is deliberately disk-backed.  SQLite's page cache is
+            # The index is disk-backed.  SQLite's page cache is
             # bounded below while event IDs do not accumulate in Python sets.
             connection.execute("PRAGMA journal_mode=OFF")
             connection.execute("PRAGMA synchronous=OFF")

@@ -1,14 +1,14 @@
 """Lossless-ish raw BigQuery REST response archival.
 
-This module deliberately sits below the query-planning adapter.  It accepts
+This module sits below the query-planning adapter.  It accepts
 the JSON shape returned by the BigQuery REST API (pages with a ``schema`` and
 ``rows`` containing ``f``/``v`` values), decodes values without going through
-floating point, and writes bounded, immutable Parquet shards.  BigQuery and
+floating point, and writes bounded Parquet shards.  BigQuery and
 S3 dependencies are optional and loaded only by the operations that need
 them.
 
 The archive is intended to preserve the values BigQuery exposes.  It cannot
-recover fields omitted by BigQuery itself (for example serialized
+recover fields omitted by BigQuery itself (for example serialised
 transactions); callers should retain the original response when that
 distinction matters.
 """
@@ -32,7 +32,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any, Protocol, TypeAlias, cast
+from typing import Any, TypeAlias, cast
 from urllib.parse import urlparse
 
 from pumpquant.core.hashing import sha256_file_with_size
@@ -60,10 +60,6 @@ _ARCHIVED_SCHEMA_KEYS = {"name", "type", "mode", "fields"}
 _REMOTE_VERIFY_RANGE_BYTES = 4 * 1024 * 1024
 _REMOTE_VERIFY_ATTEMPTS = 8
 _REMOTE_UPLOAD_ATTEMPTS = 8
-
-
-class _HasValue(Protocol):
-    def __getattr__(self, name: str) -> object: ...
 
 
 def _load_pyarrow() -> tuple[Any, Any]:
@@ -107,7 +103,7 @@ def _normal_type(type_name: object) -> str:
 
 @dataclass(frozen=True, slots=True)
 class BigQueryField:
-    """Immutable BigQuery schema field used by the decoder and Arrow writer."""
+    """BigQuery schema field used by the decoder and Arrow writer."""
 
     name: str
     type_name: str
@@ -136,7 +132,7 @@ class BigQueryField:
 
 @dataclass(frozen=True, slots=True)
 class BigQuerySchema:
-    """Immutable parsed BigQuery schema and its deterministic hash."""
+    """Parsed BigQuery schema and its deterministic hash."""
 
     fields: tuple[BigQueryField, ...]
     schema_sha256: str
@@ -145,16 +141,6 @@ class BigQuerySchema:
         names = [field.name for field in self.fields]
         if len(names) != len(set(names)):
             raise ValueError("BigQuery schema has duplicate field names")
-
-    @property
-    def hash(self) -> str:
-        """Alias useful to callers that use ``schema_hash`` terminology."""
-
-        return self.schema_sha256
-
-    @property
-    def schema_hash(self) -> str:
-        return self.schema_sha256
 
 
 def _field_from_mapping(value: object) -> BigQueryField:
@@ -187,7 +173,7 @@ def parse_bigquery_schema(schema: Mapping[str, object] | BigQuerySchema) -> BigQ
     """Parse a REST ``schema`` mapping and hash its layout deterministically.
 
     The REST response uses ``{"fields": [...]}``; passing the field sequence
-    directly is intentionally unsupported so accidental schema/row confusion
+    directly is unsupported so accidental schema/row confusion
     is reported early.
     """
 
@@ -486,7 +472,7 @@ def decode_bigquery_pages(
 def arrow_schema(
     schema: Mapping[str, object] | BigQuerySchema,
 ) -> Any:
-    """Build an explicit Arrow schema retaining BigQuery numeric types."""
+    """Build an Arrow schema retaining BigQuery numeric types."""
 
     pa, _ = _load_pyarrow()
     parsed = parse_bigquery_schema(schema)
@@ -539,13 +525,9 @@ def arrow_schema(
     )
 
 
-# A descriptive alias for callers that prefer a verb rather than a noun.
-bigquery_arrow_schema = arrow_schema
-
-
 @dataclass(frozen=True, slots=True)
 class ShardMetadata:
-    """Immutable metadata for one atomically published Parquet shard."""
+    """Metadata for one atomically published Parquet shard."""
 
     path: str
     row_count: int
@@ -580,16 +562,6 @@ class ShardMetadata:
             and self.min_block_timestamp > self.max_block_timestamp
         ):
             raise ValueError("min_block_timestamp cannot exceed max_block_timestamp")
-
-    @property
-    def bytes(self) -> int:
-        """Short alias for the byte count in manifest-facing code."""
-
-        return self.byte_count
-
-    @property
-    def schema_hash(self) -> str:
-        return self.schema_sha256
 
 
 @dataclass(frozen=True, slots=True)
@@ -656,7 +628,7 @@ class QueryProvenance:
 
 @dataclass(frozen=True, slots=True)
 class ArchiveManifest:
-    """Immutable deterministic archive manifest."""
+    """Deterministic archive manifest."""
 
     table: str
     schema_sha256: str
@@ -685,29 +657,12 @@ class ArchiveManifest:
             raise ValueError("every shard schema hash must match the manifest schema")
 
     @property
-    def table_name(self) -> str:
-        return self.table
-
-    @property
-    def schema_hash(self) -> str:
-        return self.schema_sha256
-
-    @property
     def row_count(self) -> int:
         return sum(shard.row_count for shard in self.shards)
 
     @property
     def byte_count(self) -> int:
         return sum(shard.byte_count for shard in self.shards)
-
-    @property
-    def bytes(self) -> int:
-        return self.byte_count
-
-
-# Names used by earlier prototypes and by callers that spell out the type.
-BigQueryShardMetadata = ShardMetadata
-BigQueryArchiveManifest = ArchiveManifest
 
 
 def _canonical_manifest_payload(manifest: ArchiveManifest) -> dict[str, object]:
@@ -765,7 +720,7 @@ def _canonical_manifest_payload(manifest: ArchiveManifest) -> dict[str, object]:
 
 
 def manifest_bytes(manifest: ArchiveManifest) -> bytes:
-    """Serialize a manifest without timestamps or host-specific paths."""
+    """Serialise a manifest without timestamps or host-specific paths."""
 
     payload = _canonical_manifest_payload(manifest)
     return (json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
@@ -1202,17 +1157,13 @@ def archive_bigquery_pages(
         raise
 
 
-# Concise aliases for callers that use ``archive_pages`` in application code.
-archive_pages = archive_bigquery_pages
-
-
 class ArchiveConflictError(RuntimeError):
-    """Raised when an immutable object key already contains different bytes."""
+    """Raised when an object key already contains different bytes."""
 
 
 @dataclass(frozen=True, slots=True)
 class OVHS3Config:
-    """Explicit OVH S3 connection inputs; no ambient credential lookup."""
+    """OVH S3 connection inputs; no ambient credential lookup."""
 
     endpoint_url: str
     region: str
@@ -1256,10 +1207,6 @@ class UploadResult:
     byte_count: int
     sha256: str
     skipped: bool
-
-    @property
-    def bytes(self) -> int:
-        return self.byte_count
 
 
 def _not_found_error(error: BaseException) -> bool:
@@ -1397,7 +1344,7 @@ class OVHS3Uploader:
             if _not_found_error(error):
                 return None
             # OVH can return a persistent generic 400 for HEAD while a ranged
-            # GET of the same immutable version succeeds. The one-byte probe
+            # GET of the same version succeeds. The one-byte probe
             # carries ContentRange and x-amz-meta-sha256, so it preserves the
             # same size/hash precondition instead of weakening verification.
             return self._range_head(key)
@@ -1531,7 +1478,7 @@ class OVHS3Uploader:
         expected_size: int | None = None,
         expected_sha256: str | None = None,
     ) -> UploadResult:
-        """Upload one immutable object, or skip only an exact existing copy."""
+        """Upload one object, or skip only an exact existing copy."""
 
         _validate_s3_key(key)
         path = Path(local_path)
@@ -1793,26 +1740,18 @@ class OVHS3Uploader:
     upload = upload_manifest
 
 
-S3Uploader = OVHS3Uploader
-
-
 __all__ = [
     "ArchiveConflictError",
     "ArchiveManifest",
-    "BigQueryArchiveManifest",
     "BigQueryField",
     "BigQuerySchema",
-    "BigQueryShardMetadata",
     "OVHS3Config",
     "OVHS3Uploader",
     "QueryProvenance",
-    "S3Uploader",
     "ShardMetadata",
     "UploadResult",
     "archive_bigquery_pages",
-    "archive_pages",
     "arrow_schema",
-    "bigquery_arrow_schema",
     "decode_bigquery_page",
     "decode_bigquery_pages",
     "decode_bigquery_row",

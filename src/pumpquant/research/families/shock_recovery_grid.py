@@ -1,11 +1,11 @@
 """Development-only execution and walk-forward grid for shock/recovery v1.
 
-The registry and source-window SQL live in :mod:`pumpquant.shock_recovery`.
-This module deliberately contains no RPC, HTTP, or holdout code.  It accepts
+The registry and source-window SQL live in :mod:`pumpquant.research.families.shock_recovery`.
+This module contains no RPC, HTTP, or holdout code.  It accepts
 already-materialized development rows, calibrates every threshold on the
 current fold's training mints, and evaluates delayed constant-product labels.
 
-The public functions are intentionally small enough to use in tests and in a
+The public functions are small enough to use in tests and in a
 local runner.  Rows are mappings so that the evaluator can consume DuckDB,
 Arrow, or test fixtures without introducing a data dependency here.
 """
@@ -24,7 +24,7 @@ from numbers import Real
 from pathlib import Path
 from typing import cast
 
-from pumpquant.core.hashing import sha256_file
+from pumpquant.core.hashing import canonical_json, sha256_bytes, sha256_file
 from pumpquant.research.families.shock_recovery import (
     PRIOR_ATTEMPTED_CANDIDATES,
     ShockRecoveryCandidate,
@@ -36,9 +36,6 @@ EXPERIMENT_ID = "shock-recovery-fresh-v1"
 VERSION = 1
 DEVELOPMENT_START_SLOT_INCLUSIVE = 431_265_461
 DEVELOPMENT_END_SLOT_EXCLUSIVE = 432_432_000
-DEVELOPMENT_BOUNDARY_SLOT = DEVELOPMENT_END_SLOT_EXCLUSIVE
-HOLDOUT_BOUNDARY_SLOT = DEVELOPMENT_END_SLOT_EXCLUSIVE
-FINAL_HOLDOUT_START_SLOT_INCLUSIVE = DEVELOPMENT_END_SLOT_EXCLUSIVE
 FINAL_HOLDOUT_END_SLOT_EXCLUSIVE = 432_864_000
 EMBARGO_NS = 660 * 1_000_000_000
 INITIAL_TRAIN_FRACTION = 0.30
@@ -88,20 +85,15 @@ def _text(value: object, name: str) -> str:
 
 def _canonical_json(value: object) -> bytes:
     try:
-        encoded = json.dumps(value, allow_nan=False, sort_keys=True, separators=(",", ":"))
+        return canonical_json(value)
     except (TypeError, ValueError) as error:
         raise ShockRecoveryGridError("value cannot be encoded as canonical JSON") from error
-    return (encoded + "\n").encode("utf-8")
-
-
-def _sha256_bytes(value: bytes) -> str:
-    return hashlib.sha256(value).hexdigest()
 
 
 def validate_development_upper_bound(upper_bound_slot_exclusive: int) -> int:
     """Reject a development interval that can touch the fresh holdout.
 
-    Equality is intentionally rejected.  A caller must provide a strict
+    Equality is rejected.  A caller must provide a strict
     development upper bound below epoch-1001; this avoids an accidental
     ``<=`` predicate admitting the first holdout slot.
     """
@@ -122,7 +114,7 @@ def validate_development_rows(
     *,
     upper_bound_slot_exclusive: int = DEVELOPMENT_END_SLOT_EXCLUSIVE - 1,
 ) -> tuple[dict[str, object], ...]:
-    """Validate and deterministically order materialized rows.
+    """Validate and deterministically order materialised rows.
 
     Holdout rows are rejected rather than silently filtered.  This is a
     deliberate fail-closed boundary: an accidental archival/holdout mix must
@@ -160,7 +152,7 @@ def validate_development_rows(
         availability = row.get("available_at_ns", row.get("block_time_ns"))
         if availability is not None:
             _integer(availability, f"row {index} available_at_ns")
-        # A row may have either atomic or normalized reserves.  We defer the
+        # A row may have either atomic or normalised reserves.  We defer the
         # detailed fill checks until a signal actually attempts an outcome.
         materialized.append(row)
     materialized.sort(key=_row_order_key)
@@ -494,7 +486,7 @@ def _decimals(row: Mapping[str, object], name: str) -> int:
 def _reserve(
     row: Mapping[str, object], side: str, kind: str, prior: Mapping[str, object] | None
 ) -> float | None:
-    """Read a reserve in normalized units, falling back to a prior post state."""
+    """Read a reserve in normalised units, falling back to a prior post state."""
 
     names = (
         f"{kind}_{side}_reserve",
@@ -637,12 +629,6 @@ class PositionOutcome:
     entry_event_id: str
     exit_event_id: str
     pnl_quote: float
-
-    @property
-    def pnl(self) -> float:
-        """Short alias used by generic outcome consumers."""
-
-        return self.pnl_quote
 
 
 def _path_valid(rows: Sequence[Mapping[str, object]], start: int, end: int) -> bool:
@@ -1082,7 +1068,7 @@ def promote_survivors(
                 for outcome in item.outcome_rows
             )
         )
-        # FX is an explicit promotion input.  It is absent from this
+        # FX is a promotion input.  It is absent from this
         # development-only runner, so shared-capital replay remains locked.
         shared_capital_positive = False
         gate = (
@@ -1136,7 +1122,7 @@ def registry_payload(
         "version": VERSION,
         "experiment_id": experiment_id,
         "candidate_count": len(candidates),
-        "candidate_order_sha256": _sha256_bytes(
+        "candidate_order_sha256": sha256_bytes(
             "\n".join(item.sha256 for item in candidates).encode()
         ),
         "cumulative_trial_count": PRIOR_ATTEMPTED_CANDIDATES + len(candidates),
@@ -1339,17 +1325,9 @@ def verify_local_report(output_dir: Path) -> dict[str, object]:
     return manifest
 
 
-# Descriptive aliases mirror the preregistration terminology.
-nested_whole_token_walk_forward = nested_walk_forward_folds
-evaluate_shock_recovery_registry = evaluate_registry
-write_manifest_last = write_local_report
-verify_manifest = verify_local_report
-
-
 __all__ = [
     "ADVERSE_SELECTION_BPS",
     "CUMULATIVE_TRIAL_COUNT",
-    "DEVELOPMENT_BOUNDARY_SLOT",
     "DEVELOPMENT_END_SLOT_EXCLUSIVE",
     "DEVELOPMENT_START_SLOT_INCLUSIVE",
     "DevelopmentResult",
@@ -1365,22 +1343,17 @@ __all__ = [
     "ShockRecoveryGridError",
     "TokenCohort",
     "THRESHOLD_KIND",
-    "HOLDOUT_BOUNDARY_SLOT",
     "candidate_metrics",
     "default_shock_recovery_candidates",
     "evaluate_candidate",
     "evaluate_registry",
-    "evaluate_shock_recovery_registry",
     "fit_candidate_thresholds",
     "nested_walk_forward_folds",
-    "nested_whole_token_walk_forward",
     "promote_survivors",
     "registry_payload",
     "select_training_winner",
     "validate_development_rows",
     "validate_development_upper_bound",
     "verify_local_report",
-    "verify_manifest",
-    "write_manifest_last",
     "write_local_report",
 ]

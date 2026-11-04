@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 from collections.abc import Iterable
@@ -61,7 +60,7 @@ def _write_jsonl_atomic(path: str | Path, records: Any) -> int:
 
 
 def _fixed_notional_diagnostics(values: Any) -> dict[str, Any]:
-    """Serialize only outcome statistics that do not imply an equity curve."""
+    """Serialise only outcome statistics that do not imply an equity curve."""
     payload = asdict(values)
     payload.pop("compounded_return")
     payload.pop("sequence_max_drawdown")
@@ -150,7 +149,7 @@ def _cmd_bars(args: argparse.Namespace) -> int:
         except ValueError as error:
             # Streaming requires canonical physical order.  A local Parquet
             # archive may predate that contract, so retry through the legacy
-            # materializing path only for the two ordering regressions and
+            # materialising path only for the two ordering regressions and
             # only for bounded local inputs.
             message = str(error)
             if "ordering_key order" not in message and "time-bucket starts" not in message:
@@ -287,44 +286,6 @@ def _cmd_depth(args: argparse.Namespace) -> int:
         }
     )
     return 0
-
-
-def _append_trial_ledger(
-    path: str | Path,
-    *,
-    experiment_id: str,
-    data_sha256: str,
-    config: ExecutionConfig,
-    report: Any,
-) -> int:
-    count = 0
-    with ExperimentLedger(path) as ledger:
-        for fold in report.folds:
-            selected_spec = None if fold.selected is None else fold.selected.spec
-            for evaluation in fold.candidate_evaluations:
-                spec_payload = asdict(evaluation.spec)
-                evaluation_payload = asdict(evaluation)
-                evaluation_payload["performance"] = _fixed_notional_diagnostics(
-                    evaluation.performance
-                )
-                spec_hash = hashlib.sha256(
-                    json.dumps(spec_payload, sort_keys=True, separators=(",", ":")).encode()
-                ).hexdigest()
-                payload = {
-                    "ledger_schema_version": 2,
-                    "experiment_id": experiment_id,
-                    "data_sha256": data_sha256,
-                    "fold": fold.number,
-                    "test_start_ns": fold.test_start_ns,
-                    "train_cutoff_ns": fold.train_cutoff_ns,
-                    "candidate_sha256": spec_hash,
-                    "selected": evaluation.spec == selected_spec,
-                    "execution_config": asdict(config),
-                    "evaluation": evaluation_payload,
-                }
-                ledger.append(payload)
-                count += 1
-    return count
 
 
 def _cmd_search(args: argparse.Namespace) -> int:

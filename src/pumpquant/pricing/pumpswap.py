@@ -1,6 +1,6 @@
 """Exact integer PumpSwap constant-product AMM quotes.
 
-This module is deliberately a *quote* primitive.  It does not fetch state and
+A *quote* primitive: it does not fetch state and
 does not select a historical fee tier.  A caller replaying old trades must
 resolve the pool's fee configuration first and pass the resulting basis points
 explicitly.
@@ -32,7 +32,7 @@ intentionally follows the current TypeScript SDK; the
 ``pumpswap_buy_exact_quote_in_rust`` helper is provided when a caller must
 reproduce the Rust helper byte-for-byte.
 
-``cashback`` and ``buyback`` are explicit fee components because they are
+``cashback`` and ``buyback`` are fee components because they are
 present in the PumpSwap IDL's ``BuyEvent``/``SellEvent``.  No component is
 inferred: pass the active component's bps (normally creator *or* cashback,
 not both) and pass buyback bps only when the replayed state says it is charged.
@@ -77,7 +77,7 @@ def ceil_div(numerator: int, denominator: int) -> int:
     """Return ``ceil(numerator / denominator)`` using integer arithmetic."""
 
     # Products are widened before division (``u128`` in the Rust client), so
-    # ``numerator`` is intentionally allowed above u64 here.  Public amount
+    # ``numerator`` is allowed above u64 here.  Public amount
     # arguments and returned amounts still go through ``_u64`` validation.
     if isinstance(numerator, bool) or not isinstance(numerator, int) or numerator < 0:
         raise ValueError("numerator must be a nonnegative integer")
@@ -103,7 +103,7 @@ def _fee_amount(amount: int, basis_points: int) -> int:
 
 @dataclass(frozen=True, slots=True)
 class PumpSwapFees:
-    """Explicit PumpSwap fee rates in basis points.
+    """PumpSwap fee rates in basis points.
 
     The protocol's normal fee table has LP, protocol and (for canonical Pump
     pools) coin-creator rates.  Cashback is a destination for the creator-fee
@@ -132,7 +132,7 @@ class PumpSwapFees:
 
     @property
     def total_fee_bps(self) -> int:
-        """Sum all explicitly supplied fee rates (possibly above 10,000)."""
+        """Sum all supplied fee rates (possibly above 10,000)."""
 
         return (
             self.lp_fee_bps
@@ -143,15 +143,9 @@ class PumpSwapFees:
         )
 
 
-# A concise alias for callers that prefer the terminology used by the IDL.
-PumpSwapFeeInputs = PumpSwapFees
-AtomicPumpSwapFees = PumpSwapFees
-PumpSwapFeeConfig = PumpSwapFees
-
-
 @dataclass(frozen=True, slots=True)
 class PumpSwapQuote:
-    """Immutable quote result shared by buy and sell directions.
+    """Quote result shared by buy and sell directions.
 
     ``curve_quote_amount`` is the quote amount entering the invariant before
     fees.  For an exact-quote buy using the TypeScript SDK guard, the SDK's
@@ -185,7 +179,7 @@ class PumpSwapQuote:
 
     @property
     def total_fee_quote(self) -> int:
-        """Total quote-token fee across every explicit component."""
+        """Total quote-token fee across every component."""
 
         return (
             self.lp_fee_quote
@@ -206,27 +200,6 @@ class PumpSwapQuote:
             ("cashback", self.cashback_fee_quote),
             ("buyback", self.buyback_fee_quote),
         )
-
-    # Component-name aliases used by event-reconciliation callers.
-    @property
-    def lp_fee_amount(self) -> int:
-        return self.lp_fee_quote
-
-    @property
-    def protocol_fee_amount(self) -> int:
-        return self.protocol_fee_quote
-
-    @property
-    def creator_fee_amount(self) -> int:
-        return self.creator_fee_quote
-
-    @property
-    def cashback_fee_amount(self) -> int:
-        return self.cashback_fee_quote
-
-    @property
-    def buyback_fee_amount(self) -> int:
-        return self.buyback_fee_quote
 
 
 def _resolve_fees(
@@ -326,7 +299,7 @@ def pumpswap_buy_exact_base(
     """Quote a buy for an exact amount of base tokens.
 
     The invariant amount is ``ceil(quote_reserve * base_amount /
-    (base_reserve - base_amount))``.  Each explicit fee is rounded up
+    (base_reserve - base_amount))``.  Each fee is rounded up
     independently, matching ``fee`` in the TypeScript SDK and
     ``fee_amount`` in ``pump-rust-client``.
     """
@@ -549,43 +522,14 @@ def pumpswap_sell_exact_base(
     )
 
 
-# Naming aliases keep the module ergonomic while preserving the explicit
-# ``pumpswap_`` prefix used by the rest of pumpquant's protocol math.
-pump_swap_buy_exact_base = pumpswap_buy_exact_base
-pump_swap_buy_exact_quote_in = pumpswap_buy_exact_quote_in
-pump_swap_sell_exact_base = pumpswap_sell_exact_base
-pumpswap_buy_quote_input = pumpswap_buy_exact_quote_in
-pumpswap_buy_base_input = pumpswap_buy_exact_base
-pumpswap_sell_base_input = pumpswap_sell_exact_base
-buy_exact_base = pumpswap_buy_exact_base
-buy_exact_quote_in = pumpswap_buy_exact_quote_in
-sell_exact_base = pumpswap_sell_exact_base
-AtomicPumpSwapQuote = PumpSwapQuote
-PumpSwapQuoteResult = PumpSwapQuote
-
-
 __all__ = [
     "BPS_DENOMINATOR",
     "U64_MAX",
-    "AtomicPumpSwapFees",
-    "AtomicPumpSwapQuote",
-    "PumpSwapFeeInputs",
-    "PumpSwapFeeConfig",
     "PumpSwapFees",
     "PumpSwapQuote",
-    "PumpSwapQuoteResult",
-    "buy_exact_base",
-    "buy_exact_quote_in",
     "ceil_div",
-    "pump_swap_buy_exact_base",
-    "pump_swap_buy_exact_quote_in",
-    "pump_swap_sell_exact_base",
     "pumpswap_buy_exact_base",
     "pumpswap_buy_exact_quote_in",
     "pumpswap_buy_exact_quote_in_rust",
-    "pumpswap_buy_base_input",
-    "pumpswap_buy_quote_input",
     "pumpswap_sell_exact_base",
-    "pumpswap_sell_base_input",
-    "sell_exact_base",
 ]

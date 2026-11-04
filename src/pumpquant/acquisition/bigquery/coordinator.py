@@ -11,7 +11,7 @@ actual processed-byte evidence it needs.
 
 No POST is retried.  Before a POST is attempted the day is atomically marked
 ``submission_attempt_started`` in one global ledger.  A crash or transport
-failure after that point is therefore an explicit reconciliation condition,
+failure after that point is therefore a reconciliation condition,
 not an invitation to submit the same query a second time.  The stable
 ``query_request_id`` derived from the exact execution plan is retained for
 BigQuery's request-id idempotency window.
@@ -80,7 +80,7 @@ class CoordinatorSubmissionError(CoordinatorError):
 class JobMetadata:
     """Metadata-only evidence for one BigQuery job.
 
-    ``schema`` and ``destination_table`` intentionally retain REST mappings;
+    ``schema`` and ``destination_table`` retain REST mappings;
     no query rows are ever accepted by this type.  ``actual_bytes_processed``
     may be zero for a valid empty result, while all missing values are kept as
     ``None`` until a completed ``jobs.get`` proves them.
@@ -159,7 +159,7 @@ ArchiveLookup: TypeAlias = Callable[[ApprovedDay], Mapping[str, object] | None]
 
 @dataclass(frozen=True, slots=True)
 class CoordinatedDay:
-    """The immutable plan and current durable state for one UTC day."""
+    """The plan and current durable state for one UTC day."""
 
     start: str
     end: str
@@ -183,7 +183,7 @@ class CoordinatedDay:
 
 @dataclass(frozen=True, slots=True)
 class CoordinationResult:
-    """Serializable result of preflight or execution coordination."""
+    """Serialisable result of preflight or execution coordination."""
 
     status: str
     execute: bool
@@ -440,11 +440,11 @@ def _archive_evidence(
     billing_project: str,
     source_contract_sha256: str,
 ) -> tuple[str, int, str, str, int] | None:
-    """Read a trusted immutable local audit manifest, if one exists.
+    """Read a trusted local audit manifest, if one exists.
 
-    The ``.published`` tree is the local audit copy of the immutable remote
+    The ``.published`` tree is the local audit copy of the remote
     archive.  A day with that manifest is already represented remotely and is
-    never submitted again.  Local work-in-progress manifests are intentionally
+    never submitted again.  Local work-in-progress manifests are
     ignored, so a crash cannot be mistaken for a published result.
     """
 
@@ -518,18 +518,6 @@ def _load_existing_global(path: Path, approval_sha256: str) -> dict[str, object]
                 "coordinator ledger has an indeterminate submission; reconcile before retrying"
             )
     return value
-
-
-def _global_day_state(
-    global_state: Mapping[str, object] | None, plan_hash: str
-) -> Mapping[str, object] | None:
-    if global_state is None:
-        return None
-    days = global_state.get("days")
-    if not isinstance(days, Mapping):
-        return None
-    value = days.get(plan_hash)
-    return value if isinstance(value, Mapping) else None
 
 
 def _day_payload(
@@ -673,42 +661,41 @@ def _plan_dry_runs(
     return tuple(results), by_hash
 
 
-def coordinate_approved_days(
-    approval_file: str | os.PathLike[str],
-    output_dir: str | os.PathLike[str],
-    backend: CoordinatorBackend,
-    *,
-    execute: bool = False,
-    workers: int = DEFAULT_COORDINATOR_WORKERS,
-    archive_lookup: ArchiveLookup | None = None,
-) -> CoordinationResult:
-    """Preflight and optionally submit every still-unexecuted approved day.
+_LedgerEvidence: TypeAlias = tuple[str, int, str, str | None, JobMetadata | None, str | None]
+_ArchiveEvidence: TypeAlias = tuple[str, int, str, str, int]
+_Planned: TypeAlias = dict[str, tuple[QueryPlan, DryRunResult, int, str]]
 
-    The default is a pure preflight (apart from private local ledgers).  With
-    ``execute=True`` all POSTs are launched concurrently only after the source
-    contract, every daily dry run, immutable archive/job reconciliation, and
-    cumulative-byte projection have passed.
-    """
 
-    _validate_workers(workers)
-    if not isinstance(execute, bool):
-        raise TypeError("execute must be a bool")
-    approval_path = Path(approval_file).expanduser()
-    output_base = Path(output_dir).expanduser()
-    output_base.mkdir(mode=0o700, parents=True, exist_ok=True)
-    approval_sha256 = _canonical_file_sha256(approval_path)
-    try:
-        approval = load_approval_artifact(approval_path)
-    except Exception as error:
-        raise CoordinatorPreflightError("backfill approval validation failed") from error
-    source_contract_sha256 = _source_contract(backend, approval)
-    ledger_path = _global_ledger_path(output_base, approval_sha256)
-    with _coordinator_lock(output_base):
-        global_state = _load_existing_global(ledger_path, approval_sha256)
-    # Validate every existing per-day ledger and discover immutable archives
-    # before issuing any dry run or submission request.
-    ledger_info: dict[str, tuple[str, int, str, str | None, JobMetadata | None, str | None]] = {}
-    archive_info: dict[str, tuple[str, int, str, str, int]] = {}
+def _lookup_archive(day: ApprovedDay, remote: Mapping[str, object]) -> _ArchiveEvidence:
+    """Bind a trusted archive lookup's identity and accounting before using it."""
+    job_id = remote.get("job_id")
+    if not isinstance(job_id, str) or _JOB_ID.fullmatch(job_id) is None:
+        raise CoordinatorPreflightError("immutable archive lookup returned invalid job ID")
+    parsed_actual = _as_nonnegative_int(
+        remote.get("actual_bytes_processed"), "immutable archive actual bytes"
+    )
+    if parsed_actual is None or parsed_actual > day.plan.maximum_bytes_billed:
+        raise CoordinatorPreflightError("immutable archive lookup has invalid byte accounting")
+    manifest_sha = remote.get("manifest_sha256")
+    if not isinstance(manifest_sha, str) or not _HEX64.fullmatch(manifest_sha):
+        raise CoordinatorPreflightError("immutable archive lookup has invalid manifest hash")
+    from pumpquant.acquisition.bigquery.client import query_request_id
+
+    remote_rows = _as_nonnegative_int(remote.get("total_rows", 0), "immutable archive total rows")
+    if remote_rows is None:  # pragma: no cover - helper returns int for 0
+        raise CoordinatorPreflightError("immutable archive total rows are missing")
+    return job_id, parsed_actual, query_request_id(day.plan), manifest_sha, remote_rows
+
+
+def _collect_evidence(
+    output_base: Path,
+    approval: BigQueryApproval,
+    source_contract_sha256: str,
+    archive_lookup: ArchiveLookup | None,
+) -> tuple[dict[str, _LedgerEvidence], dict[str, _ArchiveEvidence]]:
+    """Validate every per-day ledger and find archives before any request."""
+    ledger_info: dict[str, _LedgerEvidence] = {}
+    archive_info: dict[str, _ArchiveEvidence] = {}
     for day in approval.days:
         prior = _read_day_ledger(
             output_base,
@@ -732,47 +719,29 @@ def coordinate_approved_days(
             except Exception as error:
                 raise CoordinatorPreflightError("immutable archive lookup failed") from error
             if remote is not None:
-                # A supplied lookup is already trusted by its owner, but bind
-                # the identity and accounting fields before treating it as a
-                # completed archive.
-                job_id = remote.get("job_id")
-                actual = remote.get("actual_bytes_processed")
-                manifest_sha = remote.get("manifest_sha256")
-                if not isinstance(job_id, str) or _JOB_ID.fullmatch(job_id) is None:
-                    raise CoordinatorPreflightError(
-                        "immutable archive lookup returned invalid job ID"
-                    )
-                parsed_actual = _as_nonnegative_int(actual, "immutable archive actual bytes")
-                if parsed_actual is None or parsed_actual > day.plan.maximum_bytes_billed:
-                    raise CoordinatorPreflightError(
-                        "immutable archive lookup has invalid byte accounting"
-                    )
-                if not isinstance(manifest_sha, str) or not _HEX64.fullmatch(manifest_sha):
-                    raise CoordinatorPreflightError(
-                        "immutable archive lookup has invalid manifest hash"
-                    )
-                from pumpquant.acquisition.bigquery.client import query_request_id
+                archive_info[day.plan_sha256] = _lookup_archive(day, remote)
+    return ledger_info, archive_info
 
-                remote_rows = _as_nonnegative_int(
-                    remote.get("total_rows", 0), "immutable archive total rows"
-                )
-                if remote_rows is None:  # pragma: no cover - helper returns int for 0
-                    raise CoordinatorPreflightError("immutable archive total rows are missing")
-                archive_info[day.plan_sha256] = (
-                    job_id,
-                    parsed_actual,
-                    query_request_id(day.plan),
-                    manifest_sha,
-                    remote_rows,
-                )
 
-    dry_runs, planned = _plan_dry_runs(backend, approval, ledger_info)
-    days: dict[str, CoordinatedDay] = {}
-    state_days: dict[str, dict[str, object]] = {}
-    cumulative_actual = 0
-    cumulative_pending = 0
+@dataclass(slots=True)
+class _Reconciled:
+    days: dict[str, CoordinatedDay]
+    state_days: dict[str, dict[str, object]]
+    cumulative_actual: int = 0
+    cumulative_pending: int = 0
+
+
+def _reconcile_days(
+    backend: CoordinatorBackend,
+    approval: BigQueryApproval,
+    planned: _Planned,
+    ledger_info: Mapping[str, _LedgerEvidence],
+    archive_info: Mapping[str, _ArchiveEvidence],
+) -> _Reconciled:
+    """Give each day its status from archive or ledger evidence, and total the bytes."""
+    result = _Reconciled({}, {})
     for day in approval.days:
-        execution_plan, result, cap, request_id = planned[day.plan_sha256]
+        _, dry_run_result, cap, request_id = planned[day.plan_sha256]
         prior = ledger_info.get(day.plan_sha256)
         archive = archive_info.get(day.plan_sha256)
         metadata = None
@@ -783,14 +752,13 @@ def coordinate_approved_days(
         if archive is not None:
             job_id, actual, archive_request_id, manifest_sha, _ = archive
             if archive_request_id != request_id:
-                # A prior run may have used a tightened cap.  Existing ledger
-                # validation is authoritative for that case; a manifest alone
-                # must be generated with the approved cap.
+                # A prior run may have used a tightened cap; ledger validation covers
+                # that case, so a manifest alone must carry the approved cap.
                 raise CoordinatorPreflightError(
                     "immutable archive request ID differs from approved plan"
                 )
             status = "completed"
-            cumulative_actual += actual
+            result.cumulative_actual += actual
         elif prior is not None:
             prior_status, prior_cap, prior_request_id, job_id, prior_metadata, manifest_sha = prior
             if prior_cap != cap or prior_request_id != request_id:
@@ -802,17 +770,16 @@ def coordinate_approved_days(
             actual = metadata.actual_bytes_processed
             status = "job_identified" if prior_status == "job_identified" else "completed"
             if metadata.done and actual is not None:
-                cumulative_actual += actual
+                result.cumulative_actual += actual
             elif not metadata.done:
-                # An in-flight job has an unknown byte cost.  Submitting any
-                # more work would make the cumulative cap unverifiable.
+                # A running job has an unknown cost, which would make the cap unverifiable.
                 raise CoordinatorPreflightError(
                     "an identified BigQuery job is not complete; reconcile it before "
                     "submitting more days"
                 )
         else:
-            cumulative_pending += result.estimated_bytes
-        days[day.plan_sha256] = CoordinatedDay(
+            result.cumulative_pending += dry_run_result.estimated_bytes
+        result.days[day.plan_sha256] = CoordinatedDay(
             start=day.start,
             end=day.end,
             plan_sha256=day.plan_sha256,
@@ -825,7 +792,7 @@ def coordinate_approved_days(
             actual_bytes_processed=actual,
             manifest_sha256=manifest_sha,
         )
-        state_days[day.plan_sha256] = _day_payload(
+        result.state_days[day.plan_sha256] = _day_payload(
             day,
             cap=cap,
             request_id=request_id,
@@ -835,118 +802,102 @@ def coordinate_approved_days(
             actual=actual,
             manifest_sha256=manifest_sha,
         )
+    return result
 
-    # If prior global state recorded a day not present in this exact approval,
-    # it could hide a submitted query and is therefore not safe to ignore.
-    if global_state is not None:
-        old_days = global_state.get("days")
-        if isinstance(old_days, Mapping):
-            unknown = set(old_days).difference(state_days)
-            if unknown:
-                raise CoordinatorPreflightError(
-                    "coordinator ledger contains an unknown approved day"
-                )
-            for plan_hash, value in old_days.items():
-                if isinstance(value, Mapping) and value.get("status") in {
-                    "job_identified",
-                    "completed",
-                }:
-                    current = state_days.get(str(plan_hash))
-                    if current is None or current.get("job_id") != value.get("job_id"):
-                        raise CoordinatorPreflightError(
-                            "global ledger differs from durable day evidence"
-                        )
 
-    if cumulative_actual + cumulative_pending > approval.cumulative_maximum_bytes_billed:
-        raise CoordinatorPreflightError("projected cumulative bytes exceed the approved 1 TiB cap")
+def _require_same_jobs(
+    previous: Mapping[str, object] | None,
+    state_days: Mapping[str, Mapping[str, object]],
+    message: str,
+) -> None:
+    """No identified or completed day may disappear or change its job."""
+    old_days = previous.get("days") if previous is not None else None
+    if not isinstance(old_days, Mapping):
+        return
+    for plan_hash, value in old_days.items():
+        if isinstance(value, Mapping) and value.get("status") in {"job_identified", "completed"}:
+            current = state_days.get(str(plan_hash))
+            if current is None or current.get("job_id") != value.get("job_id"):
+                raise CoordinatorPreflightError(message)
 
-    preflight_state = _state_payload(
-        approval=approval,
-        approval_sha256=approval_sha256,
-        source_contract_sha256=source_contract_sha256,
-        execute=execute,
-        days=state_days,
-        status="preflight_ready",
-        cumulative_actual=cumulative_actual,
-        cumulative_pending=cumulative_pending,
-    )
-    with _coordinator_lock(output_base):
-        current = _load_existing_global(ledger_path, approval_sha256)
-        # No day may transition backward from an identified/completed job.
-        if current is not None:
-            current_days = current.get("days")
-            if isinstance(current_days, Mapping):
-                for key, value in current_days.items():
-                    if isinstance(value, Mapping) and value.get("status") in {
-                        "job_identified",
-                        "completed",
-                    }:
-                        new = state_days.get(str(key))
-                        if new is None or new.get("job_id") != value.get("job_id"):
-                            raise CoordinatorPreflightError("global ledger job identity changed")
-        _write_json(ledger_path, preflight_state)
 
-    if not execute:
+@dataclass(frozen=True, slots=True)
+class _Ledger:
+    """The coordinator's global ledger for one approval."""
+
+    approval: BigQueryApproval
+    approval_sha256: str
+    source_contract_sha256: str
+    output_base: Path
+    path: Path
+
+    def write(
+        self,
+        days: Mapping[str, Mapping[str, object]],
+        status: str,
+        *,
+        execute: bool,
+        actual: int,
+        pending: int,
+        check: Callable[[Mapping[str, object] | None], None] | None = None,
+    ) -> None:
+        with _coordinator_lock(self.output_base):
+            if check is not None:
+                check(_load_existing_global(self.path, self.approval_sha256))
+            _write_json(
+                self.path,
+                _state_payload(
+                    approval=self.approval,
+                    approval_sha256=self.approval_sha256,
+                    source_contract_sha256=self.source_contract_sha256,
+                    execute=execute,
+                    days=days,
+                    status=status,
+                    cumulative_actual=actual,
+                    cumulative_pending=pending,
+                ),
+            )
+
+    def result(
+        self,
+        status: str,
+        *,
+        execute: bool,
+        actual: int,
+        pending: int,
+        dry_runs: tuple[DryRunResult, ...],
+        days: tuple[CoordinatedDay, ...],
+    ) -> CoordinationResult:
         return CoordinationResult(
-            status="preflight_ready",
-            execute=False,
-            approval_file_sha256=approval_sha256,
-            combined_plan_sha256=approval.combined_plan_sha256,
-            billing_project=approval.billing_project,
-            source_contract_sha256=source_contract_sha256,
-            cumulative_maximum_bytes_billed=approval.cumulative_maximum_bytes_billed,
-            cumulative_actual_bytes=cumulative_actual,
-            cumulative_estimated_pending_bytes=cumulative_pending,
+            status=status,
+            execute=execute,
+            approval_file_sha256=self.approval_sha256,
+            combined_plan_sha256=self.approval.combined_plan_sha256,
+            billing_project=self.approval.billing_project,
+            source_contract_sha256=self.source_contract_sha256,
+            cumulative_maximum_bytes_billed=self.approval.cumulative_maximum_bytes_billed,
+            cumulative_actual_bytes=actual,
+            cumulative_estimated_pending_bytes=pending,
             dry_runs=dry_runs,
-            days=tuple(days[item.plan_sha256] for item in approval.days),
-            ledger_path=str(ledger_path),
+            days=days,
+            ledger_path=str(self.path),
         )
 
-    pending_days = [day for day in approval.days if days[day.plan_sha256].status == "ready"]
-    if not pending_days:
-        return CoordinationResult(
-            status="nothing_to_submit",
-            execute=True,
-            approval_file_sha256=approval_sha256,
-            combined_plan_sha256=approval.combined_plan_sha256,
-            billing_project=approval.billing_project,
-            source_contract_sha256=source_contract_sha256,
-            cumulative_maximum_bytes_billed=approval.cumulative_maximum_bytes_billed,
-            cumulative_actual_bytes=cumulative_actual,
-            cumulative_estimated_pending_bytes=0,
-            dry_runs=dry_runs,
-            days=tuple(days[item.plan_sha256] for item in approval.days),
-            ledger_path=str(ledger_path),
-        )
 
-    # Reserve every POST atomically before launching any worker.  If this
-    # process dies now, the next invocation fails closed instead of guessing
-    # whether BigQuery accepted a request.
-    started_days = dict(state_days)
-    for day in pending_days:
-        current = started_days[day.plan_sha256]
-        started_days[day.plan_sha256] = {
-            **current,
-            "status": "submission_attempt_started",
-            "query_may_have_executed": True,
-            "submission_started_at": _utc_now(),
-        }
-    started_state = _state_payload(
-        approval=approval,
-        approval_sha256=approval_sha256,
-        source_contract_sha256=source_contract_sha256,
-        execute=True,
-        days=started_days,
-        status="submitting",
-        cumulative_actual=cumulative_actual,
-        cumulative_pending=cumulative_pending,
-    )
-    with _coordinator_lock(output_base):
-        _load_existing_global(ledger_path, approval_sha256)
-        _write_json(ledger_path, started_state)
+def _submit_days(
+    backend: CoordinatorBackend,
+    ledger: _Ledger,
+    planned: _Planned,
+    pending_days: list[ApprovedDay],
+    started_days: dict[str, dict[str, object]],
+    reconciled: _Reconciled,
+    workers: int,
+) -> None:
+    """Submit the reserved days concurrently, recording each job as it is identified."""
+    approval = ledger.approval
 
     def submit(day: ApprovedDay) -> tuple[str, str, JobMetadata]:
-        plan, approval_result, _, request_id = planned[day.plan_sha256]
+        plan, approval_result, cap, _ = planned[day.plan_sha256]
         try:
             job_id = backend.submit_query(plan, approval_result)
         except Exception as error:
@@ -954,9 +905,9 @@ def coordinate_approved_days(
         if not isinstance(job_id, str) or _JOB_ID.fullmatch(job_id) is None:
             raise CoordinatorSubmissionError("BigQuery submission returned an invalid job ID")
         metadata = _metadata_call(backend, plan, job_id)
-        # Running jobs are still safely identified; completed jobs must carry
-        # all downstream metadata and byte accounting now.
-        _require_done_metadata(metadata, maximum_bytes_billed=planned[day.plan_sha256][2])
+        # A running job is still safely identified; a completed one must carry all
+        # downstream metadata and byte accounting now.
+        _require_done_metadata(metadata, maximum_bytes_billed=cap)
         return day.plan_sha256, job_id, metadata
 
     errors: list[BaseException] = []
@@ -973,122 +924,197 @@ def coordinate_approved_days(
                 errors.append(error)
                 continue
             current = started_days[plan_hash]
-            actual = metadata.actual_bytes_processed
             started_days[plan_hash] = {
                 **current,
                 "status": "job_identified",
                 "job_id": job_id,
                 "job_metadata": metadata.to_payload(),
-                "actual_bytes_processed": actual,
+                "actual_bytes_processed": metadata.actual_bytes_processed,
                 "request_id": current["request_id"],
             }
-            with _coordinator_lock(output_base):
-                state = _state_payload(
-                    approval=approval,
-                    approval_sha256=approval_sha256,
-                    source_contract_sha256=source_contract_sha256,
-                    execute=True,
-                    days=started_days,
-                    status="submitting" if not errors else "halted_error",
-                    cumulative_actual=cumulative_actual,
-                    cumulative_pending=cumulative_pending,
-                )
-                _write_json(ledger_path, state)
-            # Keep the legacy per-day ledger in sync so the existing archive
-            # and Storage Read workflows can recover this job independently.
+            ledger.write(
+                started_days,
+                "submitting" if not errors else "halted_error",
+                execute=True,
+                actual=reconciled.cumulative_actual,
+                pending=reconciled.cumulative_pending,
+            )
+            # The per-day ledger lets the archive and Storage Read paths recover
+            # this job on their own.
             _write_json(
-                _day_ledger_path(output_base, plan_hash),
+                _day_ledger_path(ledger.output_base, plan_hash),
                 {
                     **started_days[plan_hash],
                     "billing_project": approval.billing_project,
-                    "source_contract_sha256": source_contract_sha256,
+                    "source_contract_sha256": ledger.source_contract_sha256,
                     "approved_maximum_bytes_billed": approval.daily_maximum_bytes_billed,
                 },
             )
-
     if errors:
-        with _coordinator_lock(output_base):
-            _write_json(
-                ledger_path,
-                _state_payload(
-                    approval=approval,
-                    approval_sha256=approval_sha256,
-                    source_contract_sha256=source_contract_sha256,
-                    execute=True,
-                    days=started_days,
-                    status="halted_error",
-                    cumulative_actual=cumulative_actual,
-                    cumulative_pending=cumulative_pending,
-                ),
-            )
+        ledger.write(
+            started_days,
+            "halted_error",
+            execute=True,
+            actual=reconciled.cumulative_actual,
+            pending=reconciled.cumulative_pending,
+        )
         raise CoordinatorSubmissionError("one or more submissions need reconciliation") from errors[
             0
         ]
 
-    final_days = tuple(
-        CoordinatedDay(
-            start=day.start,
-            end=day.end,
-            plan_sha256=day.plan_sha256,
-            request_id=cast(str, started_days[day.plan_sha256]["request_id"]),
-            estimated_bytes=day.estimated_bytes,
-            maximum_bytes_billed=cast(int, started_days[day.plan_sha256]["maximum_bytes_billed"]),
-            status=cast(str, started_days[day.plan_sha256]["status"]),
-            job_id=cast(str | None, started_days[day.plan_sha256].get("job_id")),
-            job_metadata=(
-                None
-                if started_days[day.plan_sha256].get("job_metadata") is None
-                else _normalize_metadata(
-                    cast(Mapping[str, object], started_days[day.plan_sha256]["job_metadata"]),
-                    cast(str, started_days[day.plan_sha256]["job_id"]),
-                )
-            ),
-            actual_bytes_processed=cast(
-                int | None, started_days[day.plan_sha256].get("actual_bytes_processed")
-            ),
-            manifest_sha256=cast(str | None, started_days[day.plan_sha256].get("manifest_sha256")),
+
+def _coordinated_day(day: ApprovedDay, state: Mapping[str, object]) -> CoordinatedDay:
+    job_metadata = state.get("job_metadata")
+    return CoordinatedDay(
+        start=day.start,
+        end=day.end,
+        plan_sha256=day.plan_sha256,
+        request_id=cast(str, state["request_id"]),
+        estimated_bytes=day.estimated_bytes,
+        maximum_bytes_billed=cast(int, state["maximum_bytes_billed"]),
+        status=cast(str, state["status"]),
+        job_id=cast(str | None, state.get("job_id")),
+        job_metadata=(
+            None
+            if job_metadata is None
+            else _normalize_metadata(
+                cast(Mapping[str, object], job_metadata), cast(str, state["job_id"])
+            )
+        ),
+        actual_bytes_processed=cast(int | None, state.get("actual_bytes_processed")),
+        manifest_sha256=cast(str | None, state.get("manifest_sha256")),
+    )
+
+
+def coordinate_approved_days(
+    approval_file: str | os.PathLike[str],
+    output_dir: str | os.PathLike[str],
+    backend: CoordinatorBackend,
+    *,
+    execute: bool = False,
+    workers: int = DEFAULT_COORDINATOR_WORKERS,
+    archive_lookup: ArchiveLookup | None = None,
+) -> CoordinationResult:
+    """Preflight and optionally submit every still-unexecuted approved day.
+
+    The default is a pure preflight (apart from private local ledgers).  With
+    ``execute=True`` all POSTs are launched concurrently only after the source
+    contract, every daily dry run, archive/job reconciliation, and
+    cumulative-byte projection have passed.
+    """
+
+    _validate_workers(workers)
+    if not isinstance(execute, bool):
+        raise TypeError("execute must be a bool")
+    approval_path = Path(approval_file).expanduser()
+    output_base = Path(output_dir).expanduser()
+    output_base.mkdir(mode=0o700, parents=True, exist_ok=True)
+    approval_sha256 = _canonical_file_sha256(approval_path)
+    try:
+        approval = load_approval_artifact(approval_path)
+    except Exception as error:
+        raise CoordinatorPreflightError("backfill approval validation failed") from error
+    source_contract_sha256 = _source_contract(backend, approval)
+    ledger = _Ledger(
+        approval,
+        approval_sha256,
+        source_contract_sha256,
+        output_base,
+        _global_ledger_path(output_base, approval_sha256),
+    )
+    with _coordinator_lock(output_base):
+        global_state = _load_existing_global(ledger.path, approval_sha256)
+    ledger_info, archive_info = _collect_evidence(
+        output_base, approval, source_contract_sha256, archive_lookup
+    )
+    dry_runs, planned = _plan_dry_runs(backend, approval, ledger_info)
+    reconciled = _reconcile_days(backend, approval, planned, ledger_info, archive_info)
+    state_days = reconciled.state_days
+
+    # A day in the prior global state but not in this approval could hide a
+    # submitted query, so it is not safe to ignore.
+    if global_state is not None:
+        old_days = global_state.get("days")
+        if isinstance(old_days, Mapping) and set(old_days).difference(state_days):
+            raise CoordinatorPreflightError("coordinator ledger contains an unknown approved day")
+        _require_same_jobs(
+            global_state, state_days, "global ledger differs from durable day evidence"
         )
-        for day in approval.days
+    actual, pending = reconciled.cumulative_actual, reconciled.cumulative_pending
+    if actual + pending > approval.cumulative_maximum_bytes_billed:
+        raise CoordinatorPreflightError("projected cumulative bytes exceed the approved 1 TiB cap")
+    ledger.write(
+        state_days,
+        "preflight_ready",
+        execute=execute,
+        actual=actual,
+        pending=pending,
+        check=lambda current: _require_same_jobs(
+            current, state_days, "global ledger job identity changed"
+        ),
+    )
+
+    days = tuple(reconciled.days[item.plan_sha256] for item in approval.days)
+    if not execute:
+        return ledger.result(
+            "preflight_ready",
+            execute=False,
+            actual=actual,
+            pending=pending,
+            dry_runs=dry_runs,
+            days=days,
+        )
+    pending_days = [
+        day for day in approval.days if reconciled.days[day.plan_sha256].status == "ready"
+    ]
+    if not pending_days:
+        return ledger.result(
+            "nothing_to_submit",
+            execute=True,
+            actual=actual,
+            pending=0,
+            dry_runs=dry_runs,
+            days=days,
+        )
+
+    # Reserve every POST durably before launching any worker. If this process dies
+    # now, the next run fails closed instead of guessing what BigQuery accepted.
+    started_days = dict(state_days)
+    for day in pending_days:
+        started_days[day.plan_sha256] = {
+            **started_days[day.plan_sha256],
+            "status": "submission_attempt_started",
+            "query_may_have_executed": True,
+            "submission_started_at": _utc_now(),
+        }
+    ledger.write(
+        started_days,
+        "submitting",
+        execute=True,
+        actual=actual,
+        pending=pending,
+        check=lambda current: None,  # re-validates the ledger on disk before reserving
+    )
+    _submit_days(backend, ledger, planned, pending_days, started_days, reconciled, workers)
+
+    final_days = tuple(
+        _coordinated_day(day, started_days[day.plan_sha256]) for day in approval.days
     )
     newly_submitted = {day.plan_sha256 for day in pending_days}
-    final_actual = cumulative_actual + sum(
+    final_actual = actual + sum(
         day.actual_bytes_processed or 0
         for day in final_days
         if day.plan_sha256 in newly_submitted and day.status == "job_identified"
     )
-    with _coordinator_lock(output_base):
-        _write_json(
-            ledger_path,
-            _state_payload(
-                approval=approval,
-                approval_sha256=approval_sha256,
-                source_contract_sha256=source_contract_sha256,
-                execute=True,
-                days=started_days,
-                status="submitted",
-                cumulative_actual=final_actual,
-                cumulative_pending=0,
-            ),
-        )
-    return CoordinationResult(
-        status="submitted",
+    ledger.write(started_days, "submitted", execute=True, actual=final_actual, pending=0)
+    return ledger.result(
+        "submitted",
         execute=True,
-        approval_file_sha256=approval_sha256,
-        combined_plan_sha256=approval.combined_plan_sha256,
-        billing_project=approval.billing_project,
-        source_contract_sha256=source_contract_sha256,
-        cumulative_maximum_bytes_billed=approval.cumulative_maximum_bytes_billed,
-        cumulative_actual_bytes=final_actual,
-        cumulative_estimated_pending_bytes=0,
+        actual=final_actual,
+        pending=0,
         dry_runs=dry_runs,
         days=final_days,
-        ledger_path=str(ledger_path),
     )
-
-
-# Short aliases for integrations and CLI wrappers.
-coordinate = coordinate_approved_days
-run_coordinator = coordinate_approved_days
 
 
 __all__ = [
@@ -1102,7 +1128,5 @@ __all__ = [
     "CoordinatedDay",
     "CoordinationResult",
     "JobMetadata",
-    "coordinate",
     "coordinate_approved_days",
-    "run_coordinator",
 ]

@@ -5,7 +5,7 @@ queues.  This module therefore translates order-flow imbalance into two
 causal AMM quantities:
 
 * user quote flow divided by the quote reserve visible before each event; and
-* the event's realized directional execution impact, expressed in return units.
+* the event's realised directional execution impact, expressed in return units.
 
 Each quantity is retained both as signed pressure and as a signed/gross
 balance.  The registry and SQL contain no outcomes, fitted cutoffs, winners,

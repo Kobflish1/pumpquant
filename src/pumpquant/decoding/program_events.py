@@ -5,7 +5,7 @@ reserves, fee components, trader/pool identities, side, and market-lifecycle
 records through Anchor ``Program data: <base64>`` log records.  This module
 decodes the three trade events, lifecycle events, and state-mutating
 fee/config/liquidity events in the official IDLs pinned by
-:mod:`pumpquant.instruction_intent`.  In particular, PumpSwap
+:mod:`pumpquant.decoding.instruction_intent`.  In particular, PumpSwap
 ``DepositEvent``/``WithdrawEvent`` expose exact post-operation pool reserves
 and LP supply, while ``CreateConfigEvent``, ``UpdateFeeConfigEvent``, and
 ``DisableEvent`` expose configuration schedules.  Pump ``SetParamsEvent`` and
@@ -14,8 +14,8 @@ that cannot be inferred from a trade alone.
 
 The invocation stack attributes each data record to the program that emitted
 it. Unknown event discriminators are ignored by the log iterators; a
-recognized discriminator with malformed Borsh or trailing bytes fails closed.
-Transaction success is deliberately outside this module: callers must reject
+recognised discriminator with malformed Borsh or trailing bytes fails closed.
+Transaction success is outside this module: callers must reject
 non-null ``meta.err`` before promoting an event to a canonical swap.
 """
 
@@ -53,7 +53,7 @@ PUMPSWAP_CREATE_POOL_EVENT_DISCRIMINATOR: Final[bytes] = bytes(
 )
 
 # State/configuration event discriminators from the exact pinned IDLs.  These
-# are intentionally kept as bytes so callers can use the same discriminator
+# are kept as bytes so callers can use the same discriminator
 # values for raw ``Program data`` records and decoded event provenance.
 PUMP_SET_PARAMS_EVENT_DISCRIMINATOR: Final[bytes] = bytes((223, 195, 159, 246, 62, 48, 143, 131))
 PUMP_UPDATE_MAYHEM_VIRTUAL_PARAMS_EVENT_DISCRIMINATOR: Final[bytes] = bytes(
@@ -113,13 +113,11 @@ PUMPSWAP_EXTEND_ACCOUNT_EVENT_DISCRIMINATOR: Final[bytes] = bytes(
     (97, 97, 215, 144, 93, 146, 22, 124)
 )
 
-PINNED_EVENT_IDL_REVISION: Final[str] = PINNED_IDL_REVISION
-PINNED_EVENT_IDL_COMMIT: Final[str] = PINNED_EVENT_IDL_REVISION
 PUMP_EVENT_IDL_SOURCE: Final[str] = (
-    f"github.com/pump-fun/pump-public-docs@{PINNED_EVENT_IDL_REVISION}:idl/pump.json"
+    f"github.com/pump-fun/pump-public-docs@{PINNED_IDL_REVISION}:idl/pump.json"
 )
 PUMPSWAP_EVENT_IDL_SOURCE: Final[str] = (
-    f"github.com/pump-fun/pump-public-docs@{PINNED_EVENT_IDL_REVISION}:idl/pump_amm.json"
+    f"github.com/pump-fun/pump-public-docs@{PINNED_IDL_REVISION}:idl/pump_amm.json"
 )
 PUMP_EVENT_IDL_SHA256: Final[str] = (
     "b90bc471327f671449271d5d1d42354d1fae6f5a06502f5834459a3108138e49"
@@ -131,10 +129,8 @@ PUMPSWAP_BOOST_EVENT_IDL_SOURCE: Final[str] = "@pump-fun/pump-swap-sdk@1.19.0:sr
 PUMPSWAP_BOOST_EVENT_IDL_SHA256: Final[str] = (
     "e18072707bd59afd1fca2245a18b48eee40c64904f2b34aa84100a0f014ddbe0"
 )
-# Explicit lifecycle spellings make provenance clear to callers while
+# Lifecycle spellings make provenance clear to callers while
 # retaining the existing source constants used by trade-event consumers.
-PUMP_LIFECYCLE_EVENT_IDL_SOURCE: Final[str] = PUMP_EVENT_IDL_SOURCE
-PUMPSWAP_LIFECYCLE_EVENT_IDL_SOURCE: Final[str] = PUMPSWAP_EVENT_IDL_SOURCE
 
 _PROGRAM_DATA_PREFIX = "Program data: "
 _PUBKEY = r"[1-9A-HJ-NP-Za-km-z]{32,44}"
@@ -168,7 +164,7 @@ class UnknownProgramEventError(ProgramEventDecodeError):
 
 
 class MalformedProgramEventError(ProgramEventDecodeError):
-    """A recognized event has malformed, truncated, or trailing Borsh bytes."""
+    """A recognised event has malformed, truncated, or trailing Borsh bytes."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -184,7 +180,7 @@ class DecodedTradeEvent:
     discriminator: bytes
     values: Mapping[str, object]
     raw_data: bytes
-    idl_revision: str = PINNED_EVENT_IDL_REVISION
+    idl_revision: str = PINNED_IDL_REVISION
 
     def __post_init__(self) -> None:
         if self.program_id not in {PUMP_PROGRAM_ID, PUMPSWAP_PROGRAM_ID}:
@@ -193,7 +189,7 @@ class DecodedTradeEvent:
             raise ValueError("unsupported trade event name")
         if len(self.discriminator) != 8 or not self.raw_data.startswith(self.discriminator):
             raise ValueError("trade event discriminator does not match raw data")
-        if self.idl_revision != PINNED_EVENT_IDL_REVISION:
+        if self.idl_revision != PINNED_IDL_REVISION:
             raise ValueError("trade event does not use the pinned IDL revision")
         object.__setattr__(self, "values", MappingProxyType(dict(self.values)))
 
@@ -315,7 +311,7 @@ def _validate_lifecycle_metadata(
     if discriminator != expected_discriminator or len(discriminator) != 8:
         raise ValueError("lifecycle event discriminator does not match its IDL")
     idl_revision = event.idl_revision
-    if idl_revision != PINNED_EVENT_IDL_REVISION:
+    if idl_revision != PINNED_IDL_REVISION:
         raise ValueError("lifecycle event does not use the pinned IDL revision")
     raw_data = event.raw_data
     if raw_data and (len(raw_data) < 8 or raw_data[:8] != expected_discriminator):
@@ -349,9 +345,7 @@ class PumpCreateEvent(DecodedLifecycleEvent):
         default=PUMP_CREATE_EVENT_DISCRIMINATOR, init=False, repr=False, compare=False
     )
     raw_data: bytes = field(default=b"", init=False, repr=False, compare=False)
-    idl_revision: str = field(
-        default=PINNED_EVENT_IDL_REVISION, init=False, repr=False, compare=False
-    )
+    idl_revision: str = field(default=PINNED_IDL_REVISION, init=False, repr=False, compare=False)
 
     _FIELD_NAMES: ClassVar[tuple[str, ...]] = (
         "name",
@@ -394,9 +388,7 @@ class PumpCompleteEvent(DecodedLifecycleEvent):
         default=PUMP_COMPLETE_EVENT_DISCRIMINATOR, init=False, repr=False, compare=False
     )
     raw_data: bytes = field(default=b"", init=False, repr=False, compare=False)
-    idl_revision: str = field(
-        default=PINNED_EVENT_IDL_REVISION, init=False, repr=False, compare=False
-    )
+    idl_revision: str = field(default=PINNED_IDL_REVISION, init=False, repr=False, compare=False)
 
     _FIELD_NAMES: ClassVar[tuple[str, ...]] = (
         "user",
@@ -434,9 +426,7 @@ class PumpCompletePumpAmmMigrationEvent(DecodedLifecycleEvent):
         compare=False,
     )
     raw_data: bytes = field(default=b"", init=False, repr=False, compare=False)
-    idl_revision: str = field(
-        default=PINNED_EVENT_IDL_REVISION, init=False, repr=False, compare=False
-    )
+    idl_revision: str = field(default=PINNED_IDL_REVISION, init=False, repr=False, compare=False)
 
     _FIELD_NAMES: ClassVar[tuple[str, ...]] = (
         "user",
@@ -493,9 +483,7 @@ class PumpSwapCreatePoolEvent(DecodedLifecycleEvent):
         compare=False,
     )
     raw_data: bytes = field(default=b"", init=False, repr=False, compare=False)
-    idl_revision: str = field(
-        default=PINNED_EVENT_IDL_REVISION, init=False, repr=False, compare=False
-    )
+    idl_revision: str = field(default=PINNED_IDL_REVISION, init=False, repr=False, compare=False)
 
     _FIELD_NAMES: ClassVar[tuple[str, ...]] = (
         "timestamp",
@@ -566,7 +554,7 @@ def _state_internal_name(name: str) -> str:
     """Return a valid Python attribute for an IDL field spelling."""
 
     # ``global`` is the sole reserved-keyword field in the pinned event set.
-    # Keep ``global`` as the exact mapping key while normalizing its typed
+    # Keep ``global`` as the exact mapping key while normalising its typed
     # attribute to ``global_config`` (Python 3.14 rejects keyword dataclass
     # fields during generated ``__init__`` compilation).
     return "global_config" if name == "global" else name
@@ -586,7 +574,7 @@ def _validate_state_metadata(
         raise ValueError("state event name does not match its IDL")
     if event.discriminator != expected_discriminator or len(event.discriminator) != 8:
         raise ValueError("state event discriminator does not match its IDL")
-    if event.idl_revision != PINNED_EVENT_IDL_REVISION:
+    if event.idl_revision != PINNED_IDL_REVISION:
         raise ValueError("state event does not use the pinned IDL revision")
     if event.raw_data and (len(event.raw_data) < 8 or event.raw_data[:8] != expected_discriminator):
         raise ValueError("state event raw_data discriminator does not match")
@@ -645,7 +633,7 @@ def _state_event_class(
                 "idl_revision",
                 str,
                 field(
-                    default=PINNED_EVENT_IDL_REVISION,
+                    default=PINNED_IDL_REVISION,
                     init=False,
                     repr=False,
                     compare=False,
@@ -982,7 +970,7 @@ PumpSwapAdminSetCoinCreatorEvent = _state_event_class(
 )
 
 
-# The union is intentionally kept separate from the trade-event dataclass:
+# The union is kept separate from the trade-event dataclass:
 # callers can use static narrowing on lifecycle event names without changing
 # the existing ``DecodedTradeEvent`` mapping API.
 LifecycleEvent: TypeAlias = (
@@ -991,7 +979,6 @@ LifecycleEvent: TypeAlias = (
     | PumpCompletePumpAmmMigrationEvent
     | PumpSwapCreatePoolEvent
 )
-ProgramLifecycleEvent: TypeAlias = LifecycleEvent
 
 
 _PUMP_TRADE_FIELDS: Final[tuple[tuple[str, _FieldKind], ...]] = (
@@ -1235,12 +1222,6 @@ _PUMP_SYNC_USER_VOLUME_FIELDS: Final[tuple[tuple[str, _FieldKind], ...]] = (
     ("timestamp", "i64"),
 )
 
-_PUMPSWAP_ADMIN_UPDATE_TOKEN_INCENTIVES_FIELDS = _PUMP_ADMIN_UPDATE_TOKEN_INCENTIVES_FIELDS
-_PUMPSWAP_CLAIM_CASHBACK_FIELDS = _PUMP_CLAIM_CASHBACK_FIELDS
-_PUMPSWAP_CLAIM_TOKEN_INCENTIVES_FIELDS = _PUMP_CLAIM_TOKEN_INCENTIVES_FIELDS
-_PUMPSWAP_CLOSE_USER_VOLUME_FIELDS = _PUMP_CLOSE_USER_VOLUME_FIELDS
-_PUMPSWAP_INIT_USER_VOLUME_FIELDS = _PUMP_INIT_USER_VOLUME_FIELDS
-_PUMPSWAP_SYNC_USER_VOLUME_FIELDS = _PUMP_SYNC_USER_VOLUME_FIELDS
 _PUMPSWAP_EXTEND_ACCOUNT_FIELDS: Final[tuple[tuple[str, _FieldKind], ...]] = (
     ("timestamp", "i64"),
     ("account", "pubkey"),
@@ -1490,25 +1471,25 @@ _STATE_EVENT_SPECS: Final[dict[tuple[str, bytes], _StateEventSpec]] = {
         PUMPSWAP_PROGRAM_ID,
         "AdminUpdateTokenIncentivesEvent",
         (147, 250, 108, 120, 247, 29, 67, 222),
-        _PUMPSWAP_ADMIN_UPDATE_TOKEN_INCENTIVES_FIELDS,
+        _PUMP_ADMIN_UPDATE_TOKEN_INCENTIVES_FIELDS,
     ),
     (PUMPSWAP_PROGRAM_ID, bytes((226, 214, 246, 33, 7, 242, 147, 229))): _state_spec(
         PUMPSWAP_PROGRAM_ID,
         "ClaimCashbackEvent",
         (226, 214, 246, 33, 7, 242, 147, 229),
-        _PUMPSWAP_CLAIM_CASHBACK_FIELDS,
+        _PUMP_CLAIM_CASHBACK_FIELDS,
     ),
     (PUMPSWAP_PROGRAM_ID, bytes((79, 172, 246, 49, 205, 91, 206, 232))): _state_spec(
         PUMPSWAP_PROGRAM_ID,
         "ClaimTokenIncentivesEvent",
         (79, 172, 246, 49, 205, 91, 206, 232),
-        _PUMPSWAP_CLAIM_TOKEN_INCENTIVES_FIELDS,
+        _PUMP_CLAIM_TOKEN_INCENTIVES_FIELDS,
     ),
     (PUMPSWAP_PROGRAM_ID, bytes((146, 159, 189, 172, 146, 88, 56, 244))): _state_spec(
         PUMPSWAP_PROGRAM_ID,
         "CloseUserVolumeAccumulatorEvent",
         (146, 159, 189, 172, 146, 88, 56, 244),
-        _PUMPSWAP_CLOSE_USER_VOLUME_FIELDS,
+        _PUMP_CLOSE_USER_VOLUME_FIELDS,
     ),
     (PUMPSWAP_PROGRAM_ID, PUMPSWAP_COLLECT_COIN_CREATOR_FEE_EVENT_DISCRIMINATOR): _state_spec(
         PUMPSWAP_PROGRAM_ID,
@@ -1610,7 +1591,7 @@ _STATE_EVENT_SPECS: Final[dict[tuple[str, bytes], _StateEventSpec]] = {
         PUMPSWAP_PROGRAM_ID,
         "InitUserVolumeAccumulatorEvent",
         (134, 36, 13, 72, 232, 101, 130, 216),
-        _PUMPSWAP_INIT_USER_VOLUME_FIELDS,
+        _PUMP_INIT_USER_VOLUME_FIELDS,
     ),
     (PUMPSWAP_PROGRAM_ID, PUMPSWAP_MIGRATE_POOL_COIN_CREATOR_EVENT_DISCRIMINATOR): _state_spec(
         PUMPSWAP_PROGRAM_ID,
@@ -1663,7 +1644,7 @@ _STATE_EVENT_SPECS: Final[dict[tuple[str, bytes], _StateEventSpec]] = {
         PUMPSWAP_PROGRAM_ID,
         "SyncUserVolumeAccumulatorEvent",
         (197, 122, 167, 124, 116, 81, 91, 255),
-        _PUMPSWAP_SYNC_USER_VOLUME_FIELDS,
+        _PUMP_SYNC_USER_VOLUME_FIELDS,
     ),
     (PUMPSWAP_PROGRAM_ID, PUMPSWAP_UPDATE_ADMIN_EVENT_DISCRIMINATOR): _state_spec(
         PUMPSWAP_PROGRAM_ID,
@@ -1715,7 +1696,7 @@ _STATE_EVENT_SPECS: Final[dict[tuple[str, bytes], _StateEventSpec]] = {
 
 # Make generated classes discoverable by their stable typed names as well as
 # through each dispatch spec (for example ``PumpAdminSetCreatorEvent``).  The
-# explicitly named high-value classes above already point at these objects;
+# named high-value classes above already point at these objects;
 # this loop only publishes the remaining official event types.
 for _state_spec_entry in _STATE_EVENT_SPECS.values():
     globals()[_state_spec_entry.event_type.__name__] = _state_spec_entry.event_type
@@ -1829,7 +1810,7 @@ class _BorshReader:
 
     # ``bool`` mirrors the IDL field spelling and keeps the reader API
     # discoverable for the lifecycle layouts.  ``boolean`` remains for the
-    # existing trade decoder and is intentionally retained as the underlying
+    # existing trade decoder and is retained as the underlying
     # implementation.
     def bool(self) -> bool:
         return self.boolean()
@@ -1946,7 +1927,7 @@ def decode_lifecycle_event(program_id: str, payload: bytes | str) -> LifecycleEv
     """Decode one exact Pump/PumpSwap lifecycle event payload.
 
     The dispatch key includes both the emitting program and Anchor's complete
-    eight-byte discriminator.  A discriminator recognized for the other
+    eight-byte discriminator.  A discriminator recognised for the other
     program therefore remains unknown rather than being decoded under the
     wrong wire layout.
     """
@@ -1975,21 +1956,17 @@ def decode_lifecycle_event(program_id: str, payload: bytes | str) -> LifecycleEv
     if reader.remaining:
         raise MalformedProgramEventError("lifecycle event contains trailing Borsh bytes")
     event = spec.event_type(**values)
-    # ``raw_data`` is metadata, not part of the IDL struct and is intentionally
+    # ``raw_data`` is metadata, not part of the IDL struct and is
     # excluded from the public constructor.  Set it only after strict parsing
-    # has succeeded, preserving the immutable result's provenance.
+    # has succeeded, preserving the result's provenance.
     object.__setattr__(event, "raw_data", raw)
     return cast(LifecycleEvent, event)
-
-
-StateEvent: TypeAlias = DecodedStateEvent
-ProgramStateEvent: TypeAlias = StateEvent
 
 
 def decode_state_event(program_id: str, payload: bytes | str) -> DecodedStateEvent:
     """Decode one strict fee/config/liquidity event from the pinned IDLs.
 
-    State events deliberately remain separate from :func:`decode_trade_event`
+    State events remain separate from :func:`decode_trade_event`
     and :func:`decode_lifecycle_event`: a deposit, withdraw, or fee update is
     a causal state transition, not a swap.  The complete program/discriminator
     key prevents Pump/PumpSwap collisions from being interpreted under the
@@ -2043,39 +2020,6 @@ def decode_program_event(
     if key in _STATE_EVENT_SPECS:
         return decode_state_event(program_id, raw)
     raise UnknownProgramEventError("no pinned event matches program and discriminator")
-
-
-# Naming aliases mirror the instruction decoder and keep callers from having
-# to choose between "state" and "program" terminology.
-decode_program_state_event = decode_state_event
-decode_state = decode_state_event
-decode_event = decode_program_event
-decode_program_state = decode_state_event
-
-
-# Descriptive aliases mirror the instruction decoder's public convenience
-# names without introducing alternate parsing behavior.
-decode_program_lifecycle_event = decode_lifecycle_event
-decode_lifecycle = decode_lifecycle_event
-
-# Short and IDL-shaped aliases are useful when callers already refer to
-# events by their on-chain names.  The canonical names above retain the
-# program prefix so Pump and PumpSwap records cannot be confused.
-CreateEvent = PumpCreateEvent
-CompleteEvent = PumpCompleteEvent
-CompletePumpAmmMigrationEvent = PumpCompletePumpAmmMigrationEvent
-CreatePoolEvent = PumpSwapCreatePoolEvent
-DecodedPumpCreateEvent = PumpCreateEvent
-DecodedPumpCompleteEvent = PumpCompleteEvent
-DecodedPumpCompletePumpAmmMigrationEvent = PumpCompletePumpAmmMigrationEvent
-DecodedPumpSwapCreatePoolEvent = PumpSwapCreatePoolEvent
-SetParamsEvent = PumpSetParamsEvent
-UpdateMayhemVirtualParamsEvent = PumpUpdateMayhemVirtualParamsEvent
-DepositEvent = PumpSwapDepositEvent
-WithdrawEvent = PumpSwapWithdrawEvent
-CreateConfigEvent = PumpSwapCreateConfigEvent
-UpdateFeeConfigEvent = PumpSwapUpdateFeeConfigEvent
-DisableEvent = PumpSwapDisableEvent
 
 
 def _pop_program(stack: list[str], program_id: str) -> None:
@@ -2171,7 +2115,7 @@ def iter_lifecycle_event_logs(log_messages: Iterable[str]) -> Iterator[Lifecycle
 
 
 def extract_lifecycle_event_logs(log_messages: Iterable[str]) -> tuple[LifecycleEventLog, ...]:
-    """Materialize :func:`iter_lifecycle_event_logs` into an immutable tuple."""
+    """Materialise :func:`iter_lifecycle_event_logs` into a tuple."""
 
     return tuple(iter_lifecycle_event_logs(log_messages))
 
@@ -2184,7 +2128,7 @@ def iter_state_event_logs(
     Invocation frames are tracked exactly as in the trade/lifecycle iterators;
     a ``Program data`` record is attributed only to the program at the top of
     the stack.  Unknown event discriminators remain ignorable, while a
-    recognized state discriminator with malformed/trailing bytes fails closed.
+    recognised state discriminator with malformed/trailing bytes fails closed.
     """
 
     if unknown_count is not None and not unknown_count:
@@ -2245,16 +2189,9 @@ def iter_state_event_logs(
 def extract_state_event_logs(
     log_messages: Iterable[str], *, unknown_count: list[int] | None = None
 ) -> tuple[StateEventLog, ...]:
-    """Materialize :func:`iter_state_event_logs` into an immutable tuple."""
+    """Materialise :func:`iter_state_event_logs` into a tuple."""
 
     return tuple(iter_state_event_logs(log_messages, unknown_count=unknown_count))
-
-
-# Explicit program-prefixed aliases match the lifecycle API and make it clear
-# these records are emitted by a Pump/PumpSwap program invocation.
-iter_program_state_event_logs = iter_state_event_logs
-extract_program_state_event_logs = extract_state_event_logs
-ProgramStateEventLog = StateEventLog
 
 
 def iter_program_event_logs(
@@ -2263,7 +2200,7 @@ def iter_program_event_logs(
     """Yield every known event category while preserving log order/depth."""
 
     # Parse once so the three category iterators cannot disagree about stack
-    # repair.  The local parser intentionally mirrors their fail-closed rules.
+    # repair.  The local parser mirrors their fail-closed rules.
     stack: list[str] = []
     for log_index, message in enumerate(log_messages):
         if not isinstance(message, str):
@@ -2307,44 +2244,30 @@ def iter_program_event_logs(
 def extract_program_event_logs(
     log_messages: Iterable[str],
 ) -> tuple[TradeEventLog | LifecycleEventLog | StateEventLog, ...]:
-    """Materialize :func:`iter_program_event_logs` into an immutable tuple."""
+    """Materialise :func:`iter_program_event_logs` into a tuple."""
 
     return tuple(iter_program_event_logs(log_messages))
 
 
 def extract_trade_event_logs(log_messages: Iterable[str]) -> tuple[TradeEventLog, ...]:
-    """Materialize :func:`iter_trade_event_logs` into an immutable tuple."""
+    """Materialise :func:`iter_trade_event_logs` into a tuple."""
 
     return tuple(iter_trade_event_logs(log_messages))
 
 
 __all__ = [
-    "CompleteEvent",
-    "CompletePumpAmmMigrationEvent",
-    "CreateConfigEvent",
-    "CreateEvent",
-    "CreatePoolEvent",
-    "DepositEvent",
-    "DisableEvent",
     "DecodedLifecycleEvent",
     "DecodedStateEvent",
-    "DecodedPumpCompleteEvent",
-    "DecodedPumpCompletePumpAmmMigrationEvent",
-    "DecodedPumpCreateEvent",
-    "DecodedPumpSwapCreatePoolEvent",
     "DecodedTradeEvent",
     "LifecycleEvent",
     "LifecycleEventLog",
     "MalformedProgramEventError",
-    "PINNED_EVENT_IDL_REVISION",
-    "PINNED_EVENT_IDL_COMMIT",
     "PUMP_COMPLETE_EVENT_DISCRIMINATOR",
     "PUMP_COMPLETE_PUMP_AMM_MIGRATION_EVENT_DISCRIMINATOR",
     "PUMP_CREATE_EVENT_DISCRIMINATOR",
     "PUMP_COLLECT_CREATOR_FEE_EVENT_DISCRIMINATOR",
     "PUMP_DISTRIBUTE_CREATOR_FEES_EVENT_DISCRIMINATOR",
     "PUMP_EVENT_IDL_SHA256",
-    "PUMP_LIFECYCLE_EVENT_IDL_SOURCE",
     "PUMPSWAP_BUY_EVENT_DISCRIMINATOR",
     "PUMPSWAP_COLLECT_COIN_CREATOR_FEE_EVENT_DISCRIMINATOR",
     "PUMPSWAP_CREATE_CONFIG_EVENT_DISCRIMINATOR",
@@ -2354,7 +2277,6 @@ __all__ = [
     "PUMPSWAP_EXTEND_ACCOUNT_EVENT_DISCRIMINATOR",
     "PUMPSWAP_EVENT_IDL_SOURCE",
     "PUMPSWAP_EVENT_IDL_SHA256",
-    "PUMPSWAP_LIFECYCLE_EVENT_IDL_SOURCE",
     "PUMPSWAP_SELL_EVENT_DISCRIMINATOR",
     "PUMPSWAP_UPDATE_ADMIN_EVENT_DISCRIMINATOR",
     "PUMPSWAP_UPDATE_FEE_CONFIG_EVENT_DISCRIMINATOR",
@@ -2372,11 +2294,7 @@ __all__ = [
     "PUMPSWAP_RESERVED_FEE_RECIPIENTS_EVENT_DISCRIMINATOR",
     "PUMPSWAP_SET_BONDING_CURVE_COIN_CREATOR_EVENT_DISCRIMINATOR",
     "PUMPSWAP_SET_METAPLEX_COIN_CREATOR_EVENT_DISCRIMINATOR",
-    "StateEvent",
     "StateEventLog",
-    "ProgramLifecycleEvent",
-    "ProgramStateEvent",
-    "ProgramStateEventLog",
     "ProgramEventDecodeError",
     "PumpCompleteEvent",
     "PumpCompletePumpAmmMigrationEvent",
@@ -2405,24 +2323,16 @@ __all__ = [
     "Shareholder",
     "TradeEventLog",
     "UnknownProgramEventError",
-    "decode_lifecycle",
     "decode_lifecycle_event",
     "decode_program_event",
-    "decode_program_lifecycle_event",
-    "decode_program_state_event",
-    "decode_program_state",
-    "decode_state",
     "decode_state_event",
-    "decode_event",
     "decode_trade_event",
     "extract_lifecycle_event_logs",
     "extract_program_event_logs",
     "extract_state_event_logs",
-    "extract_program_state_event_logs",
     "extract_trade_event_logs",
     "iter_lifecycle_event_logs",
     "iter_program_event_logs",
     "iter_state_event_logs",
-    "iter_program_state_event_logs",
     "iter_trade_event_logs",
 ]

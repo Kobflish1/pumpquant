@@ -1,6 +1,6 @@
 """Sizing and risk metrics for high-frequency velocity strategies.
 
-The functions in this module deliberately consume *net account returns*.  Venue
+The functions in this module consume *net account returns*.  Venue
 fees, AMM impact, failed-transaction costs, latency, and slippage rejection must
 already be represented in each observation before Kelly sizing is attempted.
 """

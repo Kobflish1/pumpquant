@@ -1,6 +1,6 @@
 """Fold-calibrated causal event research for Pump/PumpSwap.
 
-The first event screen deliberately used fixed thresholds on already-materialized
+The first event screen used fixed thresholds on already-materialized
 features.  This module defines the broader second-stage *atomic* search.  It
 adds gap-safe event-window measurements, fits every scalar threshold inside the
 training side of each chronological fold, and keeps candidate identity separate
@@ -9,7 +9,7 @@ from the fitted threshold value.
 None of the cited futures, equity, LOB, or Pump.fun papers is treated as proof
 of executable Pump.fun profit.  They motivate falsifiable measurements only.
 Literal queue imbalance, spread, microprice, cancellations, and other L2-only
-fields are intentionally absent because a constant-product AMM has no order
+fields are absent because a constant-product AMM has no order
 book.
 """
 
@@ -119,7 +119,7 @@ def _axis_pair(
 
 # Nineteen measurements, each tested in both long-only polarities.  State and
 # execution fields such as unsigned VPIN, impact, concentration, progress, and
-# creator dumping are deliberately reserved for later one-gate-at-a-time tests.
+# creator dumping are reserved for later one-gate-at-a-time tests.
 DEFAULT_EVENT_RESEARCH_AXES: tuple[EventResearchAxis, ...] = sum(
     (
         _axis_pair(

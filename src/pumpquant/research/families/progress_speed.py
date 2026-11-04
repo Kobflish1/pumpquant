@@ -5,10 +5,10 @@ bonding-curve state, tokens that get there in fewer swaps are more likely to
 graduate.  This module turns that structural observation into a small,
 falsifiable *trading* family.  It defines stable candidate identities and a
 past-only first-crossing view; it does not inspect outcomes, select a winner,
-or authorize chronological-holdout access.
+or authorise chronological-holdout access.
 
 The checkpoint state is net quote reserve accumulated since the first
-continuous bonding-curve event.  It is deliberately measured from executable
+continuous bonding-curve event.  It is measured from executable
 reserve states rather than from a guessed protocol constant.  Only continuity
 segment zero is eligible, so a mid-history gap cannot masquerade as launch.
 """

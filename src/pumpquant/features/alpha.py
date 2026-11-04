@@ -1,13 +1,13 @@
 """Research-backed causal features for Pump bonding curves and PumpSwap.
 
-The registry deliberately distinguishes AMM-native measurements from concepts
+The registry distinguishes AMM-native measurements from concepts
 adapted from central-limit-order-book or futures research.  In particular,
 ``ofi_depth_proxy`` and ``vpin_proxy`` are bar-level AMM analogues; they are not
 observed order-flow imbalance, queue imbalance, microprice, or native L2 data.
 
 Every output row uses only bars whose snapshots are available no later than
 that row.  A strategy still has to wait for its configured execution latency,
-which is enforced by :mod:`pumpquant.alpha_strategy`.
+which is enforced by :mod:`pumpquant.research.alpha_strategy`.
 """
 
 from __future__ import annotations

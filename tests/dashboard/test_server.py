@@ -10,23 +10,33 @@ from pathlib import Path
 
 import pytest
 
-import pumpquant.dashboard.server as live_dashboard_module
-from pumpquant.dashboard.server import (
-    STATIC_ROOT,
+import pumpquant.dashboard.manifests as manifests_module
+from pumpquant.dashboard.atlas import (
     AtlasError,
     AtlasIdeasStore,
     AtlasSignalsStore,
     AtlasStore,
+    VelocityAtlasStore,
+)
+from pumpquant.dashboard.config import (
+    STATIC_ROOT,
     ConfigError,
     DashboardConfig,
+)
+from pumpquant.dashboard.manifests import (
+    verify_sealed_manifest,
+)
+from pumpquant.dashboard.market import (
+    MarketDataProvider,
+)
+from pumpquant.dashboard.server import (
     EventBroker,
     LiveDashboard,
-    MarketDataProvider,
-    VelocityAtlasStore,
+    create_server,
+)
+from pumpquant.dashboard.snapshot import (
     _flatten_metric_candidate,
     _tail_exit_candidate_summaries,
-    create_server,
-    verify_sealed_manifest,
 )
 
 MINT = "1" * 32
@@ -548,14 +558,14 @@ def test_dashboard_caches_unchanged_sealed_artifact_hashes(
     size, digest = _write_json(root, "report.json", {"status": "complete"})
     _seal(root, [{"path": "report.json", "byte_count": size, "sha256": digest}])
     digest_calls = 0
-    original = live_dashboard_module._digest_file
+    original = manifests_module.sha256_file_with_size
 
     def counted(path: Path) -> tuple[int, str]:
         nonlocal digest_calls
         digest_calls += 1
         return original(path)
 
-    monkeypatch.setattr(live_dashboard_module, "_digest_file", counted)
+    monkeypatch.setattr(manifests_module, "sha256_file_with_size", counted)
     dashboard = LiveDashboard(
         DashboardConfig(artifact_roots={"run": root}), telemetry=lambda _services: []
     )

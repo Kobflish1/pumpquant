@@ -1,6 +1,6 @@
 """Pinned, candidate-only account-position mapping for Pump instructions.
 
-The instruction decoder in :mod:`pumpquant.instruction_intent` deliberately
+The instruction decoder in :mod:`pumpquant.decoding.instruction_intent`
 stops at instruction arguments.  This module adds one similarly narrow step:
 it labels the account keys supplied with a decoded instruction according to
 the account arrays in the two official Pump IDLs at one pinned repository
@@ -10,7 +10,7 @@ does not claim that an instruction executed.
 Only the core instructions exposed by ``instruction_intent`` are listed.  A
 layout is selected by all of the following values: program address,
 instruction discriminator, instruction name, and the pinned layout/IDL
-revision.  In particular, Pump and PumpSwap intentionally retain separate
+revision.  In particular, Pump and PumpSwap retain separate
 entries for their colliding ``buy`` and ``sell`` discriminators.
 """
 
@@ -31,18 +31,16 @@ from pumpquant.decoding.instruction_intent import (
 
 # This is the only protocol source used by this module.  Keep the path in the
 # identifier so a future IDL update cannot be mistaken for the table below.
-PINNED_IDL_COMMIT: Final[str] = PINNED_IDL_REVISION
 PINNED_IDL_SOURCE_REPOSITORY: Final[str] = "github.com/pump-fun/pump-public-docs"
-PUMP_IDL_SOURCE: Final[str] = f"{PINNED_IDL_SOURCE_REPOSITORY}@{PINNED_IDL_COMMIT}:idl/pump.json"
+PUMP_IDL_SOURCE: Final[str] = f"{PINNED_IDL_SOURCE_REPOSITORY}@{PINNED_IDL_REVISION}:idl/pump.json"
 PUMPSWAP_IDL_SOURCE: Final[str] = (
-    f"{PINNED_IDL_SOURCE_REPOSITORY}@{PINNED_IDL_COMMIT}:idl/pump_amm.json"
+    f"{PINNED_IDL_SOURCE_REPOSITORY}@{PINNED_IDL_REVISION}:idl/pump_amm.json"
 )
 
 # The account layouts in the pinned IDLs are tied to the same revision label
-# used by CandidateIntent.  Historical argument layouts are intentionally not
+# used by CandidateIntent.  Historical argument layouts are not
 # accepted here: account positions may only be labelled when the candidate
 # identifies the pinned wire layout exactly.
-PINNED_LAYOUT_REVISION: Final[str] = PINNED_IDL_REVISION
 
 Pubkey: TypeAlias = bytes | str
 RawAccountPubkeys: TypeAlias = Iterable[object]
@@ -475,7 +473,7 @@ _PUMPSWAP_ACCOUNT_NAMES: dict[str, tuple[str, ...]] = {
 }
 
 
-# Account discriminators are intentionally written out here rather than
+# Account discriminators are written out here rather than
 # derived from instruction names.  They are the same bytes used by the pinned
 # instruction decoder and protect the Pump/PumpSwap collision case.
 _PUMP_DISCRIMINATORS: dict[str, bytes] = {
@@ -541,7 +539,6 @@ _spec_map: dict[AccountLayoutKey, InstructionAccountSpec] = {
 INSTRUCTION_ACCOUNT_SPECS: Mapping[AccountLayoutKey, InstructionAccountSpec] = MappingProxyType(
     _spec_map
 )
-ACCOUNT_LAYOUTS = INSTRUCTION_ACCOUNT_SPECS
 
 
 def _normalize_pubkey(value: object, index: int) -> Pubkey:
@@ -572,7 +569,7 @@ def _normalize_pubkey(value: object, index: int) -> Pubkey:
 
 @dataclass(frozen=True, slots=True)
 class CandidateAccountMapping:
-    """Immutable labels for a candidate instruction's positional accounts.
+    """Labels for a candidate instruction's positional accounts.
 
     ``account_positions`` contains exactly the pinned IDL names in order.
     ``extras`` retains every trailing account in its original order; extras
@@ -599,7 +596,7 @@ class CandidateAccountMapping:
             raise ValueError("mapping instruction_name must be non-empty text")
         if not isinstance(self.discriminator, bytes) or len(self.discriminator) != 8:
             raise ValueError("mapping discriminator must be eight bytes")
-        if self.layout_revision != PINNED_LAYOUT_REVISION:
+        if self.layout_revision != PINNED_IDL_REVISION:
             raise UnknownAccountLayoutError("mapping must use the pinned layout revision")
         if self.idl_revision != PINNED_IDL_REVISION:
             raise UnknownAccountLayoutError("mapping must use the pinned IDL revision")
@@ -629,7 +626,7 @@ class CandidateAccountMapping:
 
     @property
     def ordered_accounts(self) -> tuple[tuple[str, Pubkey], ...]:
-        """Alias emphasizing that IDL order is preserved."""
+        """Alias emphasising that IDL order is preserved."""
 
         return self.account_positions
 
@@ -712,7 +709,7 @@ def _layout_for(intent: CandidateIntent) -> InstructionAccountSpec:
         raise TypeError("intent must be a CandidateIntent")
     if intent.idl_revision != PINNED_IDL_REVISION:
         raise UnknownAccountLayoutError("candidate does not use the pinned IDL revision")
-    if intent.layout_revision != PINNED_LAYOUT_REVISION:
+    if intent.layout_revision != PINNED_IDL_REVISION:
         raise UnknownAccountLayoutError("candidate does not use the pinned account layout")
     key = (intent.program_id, intent.discriminator, intent.instruction_name, intent.idl_revision)
     spec = INSTRUCTION_ACCOUNT_SPECS.get(key)
@@ -762,46 +759,21 @@ def map_candidate_accounts(
     )
 
 
-# Explicit aliases make the narrow operation discoverable without introducing
-# separate implementations or differing validation behavior.
-map_candidate_instruction_accounts = map_candidate_accounts
-map_instruction_accounts = map_candidate_accounts
-map_account_positions = map_candidate_accounts
-map_candidate_intent_accounts = map_candidate_accounts
-map_candidate_account_positions = map_candidate_accounts
-InstructionAccountMapping = CandidateAccountMapping
-CandidateAccountPositions = CandidateAccountMapping
-CandidateInstructionAccounts = CandidateAccountMapping
-CandidateAccountMap = CandidateAccountMapping
-
-
 __all__ = [
-    "ACCOUNT_LAYOUTS",
     "AccountLayoutKey",
     "AccountListTypeError",
     "CandidateAccountMapping",
-    "CandidateAccountMap",
-    "CandidateAccountPositions",
-    "CandidateInstructionAccounts",
     "INSTRUCTION_ACCOUNT_SPECS",
-    "InstructionAccountMapping",
     "InstructionAccountSpec",
     "InstructionAccountsError",
     "MalformedAccountPubkeyError",
-    "PINNED_IDL_COMMIT",
     "PINNED_IDL_REVISION",
     "PINNED_IDL_SOURCE_REPOSITORY",
-    "PINNED_LAYOUT_REVISION",
     "PUMP_IDL_SOURCE",
     "PUMPSWAP_IDL_SOURCE",
     "Pubkey",
     "RawAccountPubkeys",
     "TooFewAccountsError",
     "UnknownAccountLayoutError",
-    "map_account_positions",
     "map_candidate_accounts",
-    "map_candidate_account_positions",
-    "map_candidate_instruction_accounts",
-    "map_candidate_intent_accounts",
-    "map_instruction_accounts",
 ]

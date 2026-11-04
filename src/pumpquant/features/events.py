@@ -4,7 +4,7 @@ The bar layer is useful for broad screens, but it cannot recover exact
 equal-volume buckets, event durations, or wallet paths.  This module therefore
 operates on chain-ordered atomic event records.  Every row contains only state
 available after the current event's ``available_at_ns``; warm-up and missing
-provenance remain explicit instead of being imputed.
+provenance remain instead of being imputed.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ def _optional_positive_integer(name: str, value: int | None) -> None:
 class EventFeatureConfig:
     """Pre-registered event feature horizons.
 
-    ``vpin_bucket_quote_atomic`` is deliberately an integer.  Bucket splitting
+    ``vpin_bucket_quote_atomic`` is an integer.  Bucket splitting
     never passes through a float, so a trade can close several buckets without
     rounding drift.
     """
@@ -993,7 +993,7 @@ def causal_event_features(
     events: Iterable[EventFeatureInput],
     config: EventFeatureConfig | None = None,
 ) -> tuple[EventFeatureRow, ...]:
-    """Materialize event features; convenient for bounded research slices."""
+    """Materialise event features; convenient for bounded research slices."""
 
     return tuple(iter_causal_event_features(events, config))
 
@@ -1102,9 +1102,9 @@ def event_feature_input_from_raw(
 
     # Pump TradeEvent reserves are emitted after the trade.  Outside Mayhem
     # mode, post +/- canonical curve amounts supplies a candidate predecessor;
-    # the ordered materializer must still prove it equals the immediately prior
+    # the ordered materialiser must still prove it equals the immediately prior
     # post-state before exposing it as executable state.  Mayhem can mutate the
-    # virtual quote reserve independently, so this projection deliberately
+    # virtual quote reserve independently, so this projection
     # emits no predecessor and forces a gap for those rows.  Fee components are
     # separate and never enter reserve algebra.
     side = Side(_required_text(row, "side"))

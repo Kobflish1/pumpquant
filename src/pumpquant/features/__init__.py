@@ -1,1 +1,1 @@
-"""Causal features computed at an explicit decision boundary."""
+"""Causal features computed at a decision boundary."""

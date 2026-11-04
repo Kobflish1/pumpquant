@@ -1,8 +1,8 @@
 """Read-only token/trade evidence store used by the research dashboard.
 
-The aggregate research ledger is deliberately small.  This companion SQLite
+The aggregate research ledger is small.  This companion SQLite
 artifact keeps the much larger drill-down surface out of progress heartbeats
-while preserving an immutable, indexed path from a candidate to every OOS
+while preserving an indexed path from a candidate to every OOS
 trade and from a trade to the token's real decoded Pump/PumpSwap price bars.
 """
 
@@ -182,7 +182,7 @@ WHERE labels.eligible_{holding_events}
 
 
 class TokenEvidenceStore:
-    """Bounded parameterized queries over one immutable SQLite artifact."""
+    """Bounded parameterised queries over one SQLite artifact."""
 
     def __init__(self, path: Path) -> None:
         resolved = path.resolve(strict=True)

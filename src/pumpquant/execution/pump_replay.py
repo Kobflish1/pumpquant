@@ -2,7 +2,7 @@
 
 SQD archive rows expose integer-second block times.  A row stamped at second
 ``t`` is therefore treated as available only at the start of ``t + 1``.  The
-module intentionally supports a fixed-budget research probe, not wallet sizing.
+module supports a fixed-budget research probe, not wallet sizing.
 """
 
 from __future__ import annotations

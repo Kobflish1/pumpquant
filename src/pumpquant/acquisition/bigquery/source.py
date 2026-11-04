@@ -1,7 +1,7 @@
 """Cost-guarded planning for the community Solana BigQuery dataset.
 
 The module is dependency-free.  It can build and audit plans without Google
-credentials; :mod:`pumpquant.google_bigquery` contains the optional adapter.
+credentials; :mod:`pumpquant.acquisition.bigquery.client` contains the optional adapter.
 No function here executes a billable query or exports data.
 """
 
@@ -10,9 +10,9 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime, time, timedelta
-from typing import Protocol, TypeAlias
+from typing import Any, Protocol, TypeAlias
 
 SOURCE_PROJECT = "bigquery-public-data"
 SOURCE_DATASET = "crypto_solana_mainnet_us"
@@ -136,7 +136,7 @@ class QueryParameter:
 
 @dataclass(frozen=True, slots=True)
 class QueryPlan:
-    """An immutable, bounded query plan."""
+    """A bounded query plan."""
 
     name: str
     sql: str
@@ -320,6 +320,43 @@ def dataset_schema_sha256(snapshot: DatasetSnapshot) -> str:
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(encoded).hexdigest()
+
+
+def snapshot_report(
+    snapshot: DatasetSnapshot, *, required_tables: tuple[str, ...] | None = None
+) -> dict[str, Any]:
+    """A JSON-ready description of a dataset snapshot and any contract issues."""
+    issues = audit_dataset(snapshot, required_tables=required_tables)
+    return {
+        "dataset": snapshot.ref.full_name,
+        "location": snapshot.location,
+        "captured_at": snapshot.captured_at,
+        "schema_sha256": dataset_schema_sha256(snapshot),
+        "required_tables": (
+            tuple(sorted(snapshot.table_map))
+            if required_tables is None
+            else tuple(sorted(required_tables))
+        ),
+        "contract_ok": not any(issue.severity == "error" for issue in issues),
+        "issues": [asdict(issue) for issue in issues],
+        "tables": [
+            {
+                "name": table.name,
+                "location": table.location,
+                "table_type": table.table_type,
+                "partition_field": table.partition_field,
+                "partition_granularity": table.partition_granularity,
+                "require_partition_filter": table.require_partition_filter,
+                "clustering_fields": table.clustering_fields,
+                "num_rows": table.num_rows,
+                "logical_bytes": table.logical_bytes,
+                "created_at": table.created_at,
+                "modified_at": table.modified_at,
+                "fields": [asdict(field) for field in table.fields],
+            }
+            for table in snapshot.tables
+        ],
+    }
 
 
 def audit_dataset(
@@ -610,7 +647,7 @@ def build_pump_transaction_plan(
     """Plan one row per Pump-related transaction while retaining all instructions.
 
     The first CTE benefits from ``Instructions`` clustering by ``program_id``.
-    The second pass intentionally retains every source instruction for matched
+    The second pass retains every source instruction for matched
     transactions; ``index``/``parent_index`` are not treated as a complete CPI
     execution order.
     """

@@ -1,9 +1,9 @@
 """Streaming, provenance-aware reconstruction of Pump/PumpSwap AMM state.
 
-The normalized :class:`~pumpquant.schema.SwapEvent` record already carries a
+The normalised :class:`~pumpquant.schema.SwapEvent` record already carries a
 post-swap reserve snapshot.  This module turns a chain-ordered stream of those
-records into immutable post-event state snapshots and *hypothetical* executable
-AMM quotes.  It is intentionally not an order-book feed: a pool has a quote
+records into post-event state snapshots and *hypothetical* executable
+AMM quotes.  It is not an order-book feed: a pool has a quote
 function, not resting bids/asks, queue position, cancellations, or observed
 L2.
 
@@ -11,13 +11,13 @@ The stream is consumed one event at a time.  No event list is built and no
 event is sorted behind the caller's back.  Duplicate event IDs, ordering
 regressions, and a changed ``(mint, quote_mint)`` identity for one market fail
 closed.  Fee configuration is always supplied by the caller (or reported as
-unknown); ``venue_fee_bps`` on an event is deliberately not promoted into a
+unknown); ``venue_fee_bps`` on an event is not promoted into a
 protocol fee tier because it does not identify the Pump/PumpSwap fee
 components or their historical rounding.
 
 When reserves, notionals, and a complete fee configuration are atomic
-integers, quotes delegate to :mod:`pumpquant.protocol_math` or
-:mod:`pumpquant.pumpswap_math`.  A caller may explicitly request normalized
+integers, quotes delegate to :mod:`pumpquant.pricing.bonding_curve` or
+:mod:`pumpquant.pricing.pumpswap`.  A caller may request normalised
 quotes with ``atomic=False`` and a single aggregate ``fee_bps``; these are
 marked as ``normalized_approximation`` and never masquerade as integer
 protocol output.
@@ -53,7 +53,6 @@ from pumpquant.pricing.quote_surface import (
     SURFACE_LABELS,
 )
 
-AMM_SURFACE_LABELS: tuple[str, str, str] = SURFACE_LABELS
 """Stable capability labels carried by every reconstructed snapshot."""
 
 MATH_MODE_INTEGER_EXACT = "integer_exact"
@@ -68,10 +67,6 @@ class QuoteStatus(StrEnum):
     UNKNOWN_CONFIG = "unknown_config"
     UNSUPPORTED_PHASE = "unsupported_phase"
     UNQUOTABLE = "unquotable"
-
-
-AMMQuoteStatus = QuoteStatus
-"""Long-form alias retained for callers that prefer an AMM prefix."""
 
 
 def _text(name: str, value: object) -> None:
@@ -171,12 +166,12 @@ class PumpSwapAMMConfig:
 
 @dataclass(frozen=True, slots=True)
 class AMMQuoteConfig:
-    """Explicit fee/unit configuration used to build hypothetical quotes.
+    """Fee/unit configuration used to build hypothetical quotes.
 
     ``pumpswap_fees`` is a complete PumpSwap component table.  The individual
     PumpSwap component fields are accepted for convenient config-file loading,
     but all five must be present before they can be used for an exact quote.
-    For a normalized approximation, pass only ``fee_bps`` and
+    For a normalised approximation, pass only ``fee_bps`` and
     ``atomic=False``.  A missing config is different from a zero-fee config and
     is reported as :attr:`QuoteStatus.UNKNOWN_CONFIG`.
     """
@@ -242,7 +237,7 @@ class AMMQuoteConfig:
 
     @classmethod
     def normalized(cls, fee_bps: Number) -> AMMQuoteConfig:
-        """Build an explicitly normalized (non-atomic) aggregate-fee config."""
+        """Build a normalised (non-atomic) aggregate-fee config."""
 
         return cls(fee_bps=fee_bps, atomic=False)
 
@@ -999,7 +994,7 @@ def _normal_bucket(
 
 @dataclass(frozen=True, slots=True)
 class AMMStateSnapshot:
-    """Immutable post-event AMM state and its reconstructed quote surface."""
+    """Post-event AMM state and its reconstructed quote surface."""
 
     event_id: str
     market_id: str
@@ -1019,7 +1014,7 @@ class AMMStateSnapshot:
     quote_reason: str | None
     unquoted_requests: tuple[Number, ...]
     spread_bps: float | None
-    labels: tuple[str, str, str] = AMM_SURFACE_LABELS
+    labels: tuple[str, str, str] = SURFACE_LABELS
     block_time_ns: int = 0
     observed_at_ns: int = 0
     signature: str | None = None
@@ -1067,7 +1062,7 @@ class AMMStateSnapshot:
             raise ValueError("unquoted snapshot cannot contain quote levels")
         if self.quote_reason is not None:
             _text("quote_reason", self.quote_reason)
-        if self.labels != AMM_SURFACE_LABELS:
+        if self.labels != SURFACE_LABELS:
             raise ValueError("unsupported AMM surface labels")
         for name in ("signature", "program_version"):
             value = getattr(self, name)
@@ -1137,17 +1132,6 @@ class AMMStateSnapshot:
     @property
     def is_unquotable(self) -> bool:
         return self.quote_status is not QuoteStatus.QUOTED
-
-
-def _phase_key(value: object) -> str | VenuePhase:
-    if isinstance(value, VenuePhase):
-        return value
-    if isinstance(value, str):
-        try:
-            return VenuePhase(value)
-        except ValueError:
-            return value
-    raise ValueError("fee config mapping keys must be phase strings or VenuePhase values")
 
 
 class AMMStateReconstructor:
@@ -1276,9 +1260,9 @@ class AMMStateReconstructor:
             if event.phase is VenuePhase.BONDING_CURVE
             else _pumpswap_config(config) is not None
         )
-        # An aggregate fee is an intentional normalized fallback.  It cannot
+        # An aggregate fee is an intentional normalised fallback.  It cannot
         # be mistaken for a complete integer protocol config merely because a
-        # normalized event happens to contain whole-valued floats/integers.
+        # normalised event happens to contain whole-valued floats/integers.
         if config.atomic is None and config.fee_bps is not None and not complete_exact_config:
             exact = False
         if config.atomic is True and not exact:
@@ -1444,7 +1428,7 @@ def iter_amm_state_snapshots(
     track_event_ids: bool = True,
     track_market_identities: bool = True,
 ) -> Iterator[AMMStateSnapshot]:
-    """Stream post-event AMM snapshots without materializing ``events``."""
+    """Stream post-event AMM snapshots without materialising ``events``."""
 
     reconstructor = AMMStateReconstructor(
         quote_notionals=quote_notionals,
@@ -1469,7 +1453,7 @@ def reconstruct_amm_states(
     track_event_ids: bool = True,
     track_market_identities: bool = True,
 ) -> list[AMMStateSnapshot]:
-    """Materialize a snapshot list for small callers; streaming is authoritative."""
+    """Materialise a snapshot list for small callers; streaming is authoritative."""
 
     return list(
         iter_amm_state_snapshots(
@@ -1485,30 +1469,11 @@ def reconstruct_amm_states(
     )
 
 
-# Friendly aliases used by callers that spell AMM as ``Amm`` or prefer the
-# word ``surface`` in a reconstruction function name.
-AmmStateSnapshot = AMMStateSnapshot
-AmmQuoteLevel = AMMQuoteLevel
-AmmStateReconstructor = AMMStateReconstructor
-AmmQuoteConfig = AMMQuoteConfig
-AMMReconstructor = AMMStateReconstructor
-iter_amm_reconstruction = iter_amm_state_snapshots
-reconstruct_amm_state_stream = iter_amm_state_snapshots
-build_amm_quote_surface = iter_amm_state_snapshots
-
-
 __all__ = [
-    "AMM_SURFACE_LABELS",
     "AMMQuoteConfig",
     "AMMQuoteLevel",
-    "AMMQuoteStatus",
-    "AMMReconstructor",
     "AMMStateReconstructor",
     "AMMStateSnapshot",
-    "AmmQuoteConfig",
-    "AmmQuoteLevel",
-    "AmmStateReconstructor",
-    "AmmStateSnapshot",
     "FeeConfig",
     "FeeConfigResolver",
     "MATH_MODE_INTEGER_EXACT",
@@ -1519,9 +1484,6 @@ __all__ = [
     "PumpSwapAMMConfig",
     "QuoteStatus",
     "RECONSTRUCTED_EXECUTABLE_SURFACE",
-    "build_amm_quote_surface",
-    "iter_amm_reconstruction",
     "iter_amm_state_snapshots",
-    "reconstruct_amm_state_stream",
     "reconstruct_amm_states",
 ]

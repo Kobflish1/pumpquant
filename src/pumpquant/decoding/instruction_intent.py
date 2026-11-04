@@ -1,10 +1,10 @@
 """Seed-only Pump and PumpSwap instruction-intent decoding.
 
-This module deliberately stops at instruction arguments.  It does not inspect
+This module stops at instruction arguments.  It does not inspect
 accounts, transaction outcomes, logs, or token transfers, and it never turns a
 candidate instruction into a :class:`~pumpquant.schema.SwapEvent`.  Callers can
 use the immutable :class:`CandidateIntent` as a seed for a later, state-aware
-canonicalizer.
+canonicaliser.
 
 The instruction table covers all 40 Pump and 27 PumpSwap instructions in one
 official ``pump-public-docs`` commit.  It is still seed-only: decoding an
@@ -12,7 +12,7 @@ argument payload does not assert account ownership, transaction success, or a
 reserve/configuration write.
 The key for every entry includes the program address, the complete eight-byte
 Anchor discriminator, and that pinned revision.  In particular, Pump and
-PumpSwap intentionally retain separate entries for their colliding ``buy`` and
+PumpSwap retain separate entries for their colliding ``buy`` and
 ``sell`` discriminators.
 """
 
@@ -31,19 +31,13 @@ PUMP_PROGRAM_ID: Final[str] = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
 PUMPSWAP_PROGRAM_ID: Final[str] = "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"
 # Spellings used by callers and by the public docs are both useful.  Keep one
 # value so accidental divergence is impossible.
-PUMP_SWAP_PROGRAM_ID: Final[str] = PUMPSWAP_PROGRAM_ID
-PUMP_PROGRAM: Final[str] = PUMP_PROGRAM_ID
-PUMPSWAP_PROGRAM: Final[str] = PUMPSWAP_PROGRAM_ID
-PUMP_SWAP_PROGRAM: Final[str] = PUMPSWAP_PROGRAM_ID
 
 PINNED_IDL_REVISION: Final[str] = "1b822158844a60ca577df6ca122211b595a1a578"
-PINNED_IDL_COMMIT: Final[str] = PINNED_IDL_REVISION
 
-# Explicit wire-layout labels.  ``PINNED_IDL_REVISION`` is used for the
+# Wire-layout labels.  ``PINNED_IDL_REVISION`` is used for the
 # current direct-bool tuple struct from the official IDL.  The other labels are
 # retained in the candidate record whenever a known historical wire shape is
 # decoded; they are not alternate, unpinned instruction tables.
-LAYOUT_REVISION_PINNED: Final[str] = PINNED_IDL_REVISION
 LAYOUT_REVISION_LEGACY_NO_TRACK_VOLUME: Final[str] = "legacy_no_track_volume"
 LAYOUT_REVISION_HISTORICAL_OPTION_BOOL: Final[str] = "historical_option_bool"
 LAYOUT_REVISION_HISTORICAL_TRACK_VOLUME: Final[str] = "historical_track_volume"
@@ -58,7 +52,7 @@ class InstructionIntentDecodeError(ValueError):
 
 
 class UnsupportedEncodingError(InstructionIntentDecodeError):
-    """The caller did not explicitly select one supported transport encoding."""
+    """The caller did not select one supported transport encoding."""
 
 
 class UnknownInstructionError(InstructionIntentDecodeError):
@@ -103,7 +97,7 @@ def decode_base58(value: str | bytes) -> bytes:
 
     Canonical validation is important for raw data provenance: invalid
     alphabet characters, non-ASCII bytes, and alternate spellings are all
-    rejected rather than silently normalized.
+    rejected rather than silently normalised.
     """
 
     if isinstance(value, bytes):
@@ -170,7 +164,7 @@ class InstructionSpec:
     field_types: tuple[str, ...]
     # A legacy Pump/PumpSwap wire shape can omit or append the track-volume
     # option while retaining the same Anchor discriminator.  This metadata is
-    # deliberately explicit; arbitrary trailing bytes are never accepted.
+    # explicit; arbitrary trailing bytes are never accepted.
     historical_optional_tail: str | None = None
     idl_revision: str = PINNED_IDL_REVISION
 
@@ -193,10 +187,10 @@ class InstructionSpec:
 
 @dataclass(frozen=True, slots=True)
 class CandidateIntent:
-    """Immutable, explicitly labelled candidate instruction intent.
+    """Labelled candidate instruction intent.
 
-    This is *not* a fill, execution result, or normalized swap event.  The
-    values are only the arguments serialized in the instruction's Borsh data;
+    This is *not* a fill, execution result, or normalised swap event.  The
+    values are only the arguments serialised in the instruction's Borsh data;
     ``raw_data`` retains those exact decoded bytes for later reprocessing.
     Pubkeys remain their original 32-byte values so no text encoding is
     mistaken for an on-chain identity; use :func:`encode_base58` when a
@@ -241,25 +235,25 @@ class CandidateIntent:
 
     @property
     def kind(self) -> Literal["candidate_intent"]:
-        """Short label useful when serializing mixed decoder outputs."""
+        """Short label useful when serialising mixed decoder outputs."""
 
         return self.intent_kind
 
     @property
     def intent_type(self) -> Literal["candidate_intent"]:
-        """Long-form semantic label for serializers that use ``type`` names."""
+        """Long-form semantic label for serialisers that use ``type`` names."""
 
         return self.intent_kind
 
     @property
     def type(self) -> Literal["candidate_intent"]:
-        """Alias for the explicit candidate-intent label."""
+        """Alias for the candidate-intent label."""
 
         return self.intent_kind
 
     @property
     def label(self) -> Literal["candidate_intent"]:
-        """Explicit semantic label; never an event or fill type."""
+        """Semantic label; never an event or fill type."""
 
         return self.intent_kind
 
@@ -283,7 +277,7 @@ class CandidateIntent:
 
     @property
     def arguments(self) -> IntentArguments:
-        """Alias for the immutable argument mapping."""
+        """Alias for the argument mapping."""
 
         return self.args
 
@@ -313,10 +307,10 @@ class CandidateIntent:
 
     @property
     def track_volume(self) -> bool | None:
-        """Normalized optional track-volume flag when present in a layout.
+        """Normalised optional track-volume flag when present in a layout.
 
         Legacy sell layouts did not name this argument in the pinned IDL, so
-        they intentionally return ``None`` here without adding a synthetic key
+        they return ``None`` here without adding a synthetic key
         to ``args``.
         """
 
@@ -792,7 +786,7 @@ class _BorshReader:
         return bool(value)
 
     def optional_bool(self) -> tuple[bool | None, str]:
-        """Read one of the explicitly supported OptionBool wire layouts.
+        """Read one of the supported OptionBool wire layouts.
 
         The pinned IDLs define ``OptionBool`` as a tuple struct containing a
         direct bool, hence the one-byte current shape.  A historical omitted
@@ -805,7 +799,7 @@ class _BorshReader:
         if self.remaining == 0:
             return None, LAYOUT_REVISION_LEGACY_NO_TRACK_VOLUME
         if self.remaining == 1:
-            return self.read_bool(), LAYOUT_REVISION_PINNED
+            return self.read_bool(), PINNED_IDL_REVISION
         if self.remaining == 2:
             tag = self._take(1)[0]
             if tag != 1:
@@ -844,7 +838,7 @@ class _BorshReader:
 def _decode_args(spec: InstructionSpec, raw: bytes) -> tuple[IntentArguments, str]:
     reader = _BorshReader(raw)
     values: dict[str, IntentValue] = {}
-    layout_revision = LAYOUT_REVISION_PINNED
+    layout_revision = PINNED_IDL_REVISION
     for name, field_type in zip(spec.fields, spec.field_types, strict=True):
         # IDL ``OptionBool`` is a named struct containing exactly one bool at
         # this pinned revision, so it uses the same one-byte canonical encoding.
@@ -860,7 +854,7 @@ def _decode_args(spec: InstructionSpec, raw: bytes) -> tuple[IntentArguments, st
             values[name] = reader.read_bool()
         elif field_type == "optional_bool":
             value, layout_revision = reader.optional_bool()
-            # OptionBool is an explicitly nullable protocol argument.  Keep
+            # OptionBool is a nullable protocol argument.  Keep
             # None in the typed result for the known omitted legacy layout.
             values[name] = value
         elif field_type == "optional_u64":
@@ -903,7 +897,7 @@ def decode_instruction_intent(
     """Decode one encoded Pump/PumpSwap instruction into a candidate intent.
 
     ``encoding`` is mandatory and must be exactly ``"base58"`` or
-    ``"base64"``.  There is intentionally no auto-detection because both
+    ``"base64"``.  There is no auto-detection because both
     alphabets can represent plausible text and guessing would make malformed
     seed rows look valid.  Unknown programs/discriminators and every malformed
     Borsh payload raise :class:`InstructionIntentDecodeError` subclasses.
@@ -932,15 +926,6 @@ def decode_instruction_intent(
     )
 
 
-# Small aliases make the transport boundary discoverable without creating a
-# second implementation.  They retain the same mandatory explicit encoding.
-decode_instruction = decode_instruction_intent
-decode_intent = decode_instruction_intent
-decode_instruction_data = decode_instruction_intent
-decode_pump_instruction = decode_instruction_intent
-InstructionIntent = CandidateIntent
-
-
 __all__ = [
     "BASE58_ALPHABET",
     "CandidateIntent",
@@ -948,29 +933,18 @@ __all__ = [
     "INSTRUCTION_SPECS",
     "IntentArguments",
     "IntentValue",
-    "InstructionIntent",
     "InstructionIntentDecodeError",
     "InstructionSpec",
     "LAYOUT_REVISION_HISTORICAL_OPTION_BOOL",
     "LAYOUT_REVISION_HISTORICAL_TRACK_VOLUME",
     "LAYOUT_REVISION_LEGACY_NO_TRACK_VOLUME",
-    "LAYOUT_REVISION_PINNED",
     "MalformedInstructionError",
-    "PINNED_IDL_COMMIT",
     "PINNED_IDL_REVISION",
     "PUMP_PROGRAM_ID",
-    "PUMP_PROGRAM",
-    "PUMP_SWAP_PROGRAM_ID",
-    "PUMP_SWAP_PROGRAM",
-    "PUMPSWAP_PROGRAM",
     "PUMPSWAP_PROGRAM_ID",
     "UnknownInstructionError",
     "UnsupportedEncodingError",
     "decode_base58",
-    "decode_instruction",
-    "decode_instruction_data",
     "decode_instruction_intent",
-    "decode_intent",
-    "decode_pump_instruction",
     "encode_base58",
 ]

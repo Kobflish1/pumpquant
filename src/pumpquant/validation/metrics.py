@@ -103,7 +103,7 @@ def probabilistic_sharpe_ratio(returns: list[float], benchmark_sharpe: float = 0
     """Probability that the population Sharpe exceeds ``benchmark_sharpe``.
 
     Implements the skew/kurtosis-adjusted statistic from Bailey and Lopez de
-    Prado.  It is deliberately not reported for fewer than three observations.
+    Prado.  It is not reported for fewer than three observations.
     """
     clean = [float(value) for value in returns]
     if not all(math.isfinite(value) for value in clean):

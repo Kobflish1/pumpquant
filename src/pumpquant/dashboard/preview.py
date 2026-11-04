@@ -9,11 +9,15 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any
 
-from pumpquant.dashboard.server import (
+from pumpquant.dashboard.config import (
     DashboardConfig,
-    LiveDashboard,
+)
+from pumpquant.dashboard.market import (
     MarketDataError,
     MarketDataProvider,
+)
+from pumpquant.dashboard.server import (
+    LiveDashboard,
     create_server,
 )
 from pumpquant.demo import DemoRun, run_demo
@@ -23,7 +27,7 @@ NOT_IN_DEMO = "not_part_of_synthetic_demo"
 
 
 class OfflineMarketData(MarketDataProvider):
-    """Market lookups are deliberately unavailable in the preview."""
+    """Market lookups are unavailable in the preview."""
 
     def sol_usd(self) -> dict[str, object]:
         raise MarketDataError("Offline preview: exchange rate is unavailable")

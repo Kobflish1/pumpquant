@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 from collections import Counter, defaultdict
@@ -12,6 +11,7 @@ from pathlib import Path
 from typing import cast
 
 from pumpquant.acquisition.stream_archive import verify_raw_stream_segment
+from pumpquant.core.hashing import canonical_json, sha256_bytes
 
 _KIND = "pumpquant.raw_stream_segment"
 _SCHEMA_VERSION = 1
@@ -19,10 +19,6 @@ _SCHEMA_VERSION = 1
 
 class RawStreamAuditError(RuntimeError):
     """Raised when a live-stream archive cannot be verified consistently."""
-
-
-def _sha256(value: bytes) -> str:
-    return hashlib.sha256(value).hexdigest()
 
 
 def _nonnegative(value: object, label: str) -> int:
@@ -43,12 +39,6 @@ def _text(value: object, label: str) -> str:
     return value
 
 
-def _canonical(value: object) -> bytes:
-    return (
-        json.dumps(value, allow_nan=False, separators=(",", ":"), sort_keys=True) + "\n"
-    ).encode("utf-8")
-
-
 @dataclass(frozen=True, slots=True)
 class RawStreamAuditResult:
     """Stable mapping and canonical JSON returned by a capture audit."""
@@ -60,7 +50,7 @@ class RawStreamAuditResult:
 
     def to_json(self, *, indent: int | None = None) -> str:
         if indent is None:
-            return _canonical(self.payload).decode("utf-8")
+            return canonical_json(self.payload).decode("utf-8")
         return json.dumps(self.payload, allow_nan=False, indent=indent, sort_keys=True) + "\n"
 
 
@@ -116,7 +106,7 @@ def _load_segment(manifest_path: Path) -> _Segment:
         raise RawStreamAuditError(f"invalid stream error_kind: {manifest_path}")
     return _Segment(
         path=manifest_path.parent,
-        manifest_sha256=_sha256(encoded),
+        manifest_sha256=sha256_bytes(encoded),
         segment_id=_text(raw.get("segment_id"), "segment_id"),
         source_id=_text(raw.get("source_id"), "source_id"),
         stream_name=_text(raw.get("stream_name"), "stream_name"),
@@ -251,7 +241,7 @@ def audit_raw_stream_capture(root_value: str | os.PathLike[str]) -> RawStreamAud
             ),
             "min_slot": _minimum(_present([item.min_slot for item in values])),
             "max_slot": _maximum(_present([item.max_slot for item in values])),
-            "manifest_set_sha256": _sha256(
+            "manifest_set_sha256": sha256_bytes(
                 "\n".join(sorted(value.manifest_sha256 for value in values)).encode("ascii")
             ),
         }
@@ -270,7 +260,7 @@ def audit_raw_stream_capture(root_value: str | os.PathLike[str]) -> RawStreamAud
         "disconnect_segment_count": sum(value.close_reason == "disconnect" for value in segments),
         "sequence_gap_count": total_sequence_gaps,
         "sequence_overlap_count": total_sequence_overlaps,
-        "manifest_set_sha256": _sha256(
+        "manifest_set_sha256": sha256_bytes(
             "\n".join(sorted(value.manifest_sha256 for value in segments)).encode("ascii")
         ),
         "streams": stream_payloads,

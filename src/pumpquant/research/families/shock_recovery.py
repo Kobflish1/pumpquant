@@ -1,7 +1,7 @@
 """Causal sell-shock then recovery registry for fresh-data research.
 
 This module defines measurements and stable candidate identities only.  It
-does not evaluate outcomes, select parameters, or authorize holdout access.
+does not evaluate outcomes, select parameters, or authorise holdout access.
 Shock and recovery windows are disjoint by construction.
 """
 

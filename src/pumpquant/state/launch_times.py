@@ -1,15 +1,15 @@
-"""Export verified lifecycle launch anchors for :mod:`pumpquant.features`.
+"""Export verified lifecycle launch anchors for :mod:`pumpquant.features.bars`.
 
-The lifecycle feature materializer writes one feature row per swap.  Launch
+The lifecycle feature materialiser writes one feature row per swap.  Launch
 anchor columns are therefore repeated many times, and rows without a launch
-anchor are explicit rather than an invitation to infer one from the first
+anchor are rather than an invitation to infer one from the first
 observed swap.  This module verifies the feature dataset manifest and emits
 the small ``{mint: launch_block_time_ns}`` object consumed by ``pumpquant
 bars``.
 
-The exporter is intentionally fail-closed: a malformed manifest/row, a
+The exporter is fail-closed: a malformed manifest/row, a
 conflicting anchor, or an ambiguous duplicate aborts before an existing output
-is replaced.  Mints whose rows explicitly say that the launch anchor is
+is replaced.  Mints whose rows say that the launch anchor is
 missing are reported and omitted unless another verified partition supplies
 one consistent true anchor.  ``strict`` (also exposed as
 ``--require-complete`` by the CLI) fails when any mint remains unresolved
@@ -168,7 +168,7 @@ def _resolve_feature_input(value: str | Path) -> tuple[Path, Path, Mapping[str, 
         raise LaunchTimesError(f"unsupported feature manifest version: {manifest.get('version')!r}")
     row_count = _nonnegative_int(manifest.get("row_count"), "feature row_count")
     entries = _file_entries(manifest)
-    # A manifest-last feature materialization always inventories this file.
+    # A manifest-last feature materialisation always inventories this file.
     feature_candidates = [
         relative for relative in entries if Path(relative).name == "features.parquet"
     ]
@@ -400,7 +400,7 @@ def export_launch_times(
     missing: set[str] = set()
     row_count = 0
     for feature_path, _manifest_path, _manifest in verified:
-        # Enrichment partitions are intentionally self-contained.  A mint can
+        # Enrichment partitions are self-contained.  A mint can
         # therefore be missing its older launch event in one partition and
         # carry the true anchor in another.  Mixed status inside one sealed
         # feature dataset is corrupt; cross-dataset resolution is legitimate.
@@ -520,13 +520,9 @@ def build_launch_times(
             pass
 
 
-export = export_launch_times
-
-
 __all__ = [
     "DEFAULT_BATCH_SIZE",
     "LaunchTimesError",
     "build_launch_times",
-    "export",
     "export_launch_times",
 ]

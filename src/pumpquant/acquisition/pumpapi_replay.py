@@ -234,7 +234,7 @@ def _row(event: dict[str, object], hour: datetime, sequence: int, raw: bytes) ->
         "freeze_authority": event.get("freezeAuthority"),
         # Buys and sells repeat large metadata/post-balance objects hundreds of
         # thousands of times per hour.  Their complete economic state is
-        # normalized above.  Preserve the raw provider payload for the rare
+        # normalised above.  Preserve the raw provider payload for the rare
         # structural events where future schema additions may matter.
         "structural_raw_json": (
             None if action in {"buy", "sell"} else raw.decode("utf-8").rstrip("\n")

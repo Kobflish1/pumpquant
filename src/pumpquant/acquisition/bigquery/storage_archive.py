@@ -1,8 +1,8 @@
 """Read an already-completed BigQuery query job through the Storage Read API.
 
-This module is intentionally separate from :mod:`pumpquant.bigquery_archive`'s
-REST page reader.  It accepts an existing ``DONE`` query job, validates its
-anonymous destination with an idempotent ``jobs.get`` call, creates exactly one
+Separate from the REST page reader in
+:mod:`pumpquant.acquisition.bigquery.archive`, it accepts an existing ``DONE`` query
+job, validates its anonymous destination with an idempotent ``jobs.get`` call, creates exactly one
 Storage Read API snapshot, and writes the returned Arrow batches to local,
 atomic zstd Parquet shards.  It never submits a query and never uploads an
 object.
@@ -249,13 +249,6 @@ def _job_schema_optional(job: object) -> BigQuerySchema | None:
         raise BigQueryStorageArchiveError(
             "completed query job has an invalid result schema"
         ) from error
-
-
-def _job_schema(job: object) -> BigQuerySchema:
-    schema = _job_schema_optional(job)
-    if schema is None:
-        raise BigQueryStorageArchiveError("completed query job has no result schema")
-    return schema
 
 
 def _table_reference(table: object) -> object:
@@ -769,7 +762,7 @@ def archive_completed_query_job(
 ) -> ArchiveManifest:
     """Archive one existing completed query job via one Storage Read snapshot.
 
-    The function is deliberately fail-closed: an existing output root or stale
+    The function is fail-closed: an existing output root or stale
     staging directory is never resumed or overwritten.  Any failure after
     staging begins removes the incomplete staging tree, leaving no manifest
     that could be mistaken for a complete archive.
@@ -941,17 +934,10 @@ def archive_completed_query_job(
         raise
 
 
-def archive_bigquery_storage_job(**kwargs: Any) -> ArchiveManifest:
-    """Compatibility alias with a descriptive name for remote workers."""
-
-    return archive_completed_query_job(**kwargs)
-
-
 __all__ = [
     "AnonymousDestination",
     "BigQueryStorageArchiveError",
     "CompletedQueryJob",
-    "archive_bigquery_storage_job",
     "archive_completed_query_job",
     "resolve_completed_query_job",
 ]

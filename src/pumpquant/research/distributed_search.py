@@ -1,18 +1,18 @@
 """Deterministic distributed candidate search helpers.
 
-The regular search implementation in :mod:`pumpquant.search` deliberately
+The regular search implementation in :mod:`pumpquant.research.search`
 owns the walk-forward split and all execution semantics.  This module only
 adds the orchestration boundary around it:
 
 * candidates are assigned by their zero-based stream ordinal (``ordinal %
-  worker_count``), so a worker never has to materialize a Cartesian product;
+  worker_count``), so a worker never has to materialise a Cartesian product;
 * every worker writes its own fsync-safe JSONL ledger and a small manifest;
 * ledgers can be merged in a stable order, with conflicting duplicate trial
   identities rejected before anything is published; and
 * an optional local process launcher keeps the number of concurrent workers
   bounded.
 
-Partitioning is intentionally order based.  Consequently all hosts must use
+Partitioning is order based.  Consequently all hosts must use
 the same candidate-stream definition, seed, and ordering.  Walk-forward bars
 are *not* partitioned: every worker receives the complete bar input so that
 each worker's training and test cohorts remain exactly the same chronology.
@@ -103,8 +103,8 @@ class CandidatePartition(Iterable[MomentumSpec]):
         if self.deduplicated:
             total = len(self.source)  # type: ignore[arg-type]
         else:
-            # A concrete sequence can be scanned without materializing a
-            # second candidate container.  Lazy generators intentionally do
+            # A concrete sequence can be scanned without materialising a
+            # second candidate container.  Lazy generators do
             # not claim a length after content deduplication.
             unique = 0
             seen: set[str] = set()
@@ -130,12 +130,6 @@ class CandidatePartition(Iterable[MomentumSpec]):
             return len(self)
         except TypeError:
             return None
-
-    @property
-    def candidate_count_hint(self) -> int | None:
-        """Compatibility name for :attr:`total_count_hint`."""
-
-        return self.total_count_hint
 
 
 def _validate_worker_coordinates(worker_count: int, worker_index: int) -> None:
@@ -173,13 +167,6 @@ def partition_candidates(
     )
 
 
-# Explicit aliases make the orchestration primitive easy to discover without
-# duplicating implementation or changing the legacy search API.
-partition_candidate_stream = partition_candidates
-distributed_candidate_partition = partition_candidates
-iter_candidate_partition = partition_candidates
-
-
 def partition_sizes(total_count: int, worker_count: int) -> tuple[int, ...]:
     """Return deterministic modulo-partition sizes for a known stream length."""
 
@@ -201,11 +188,8 @@ def default_worker_ledger_path(ledger_dir: str | os.PathLike[str], worker_index:
     return Path(ledger_dir) / f"worker-{worker_index:05d}.jsonl"
 
 
-worker_ledger_path = default_worker_ledger_path
-ledger_path_for_worker = default_worker_ledger_path
-
-
-def _canonical_json(value: Any) -> bytes:
+def _ledger_json(value: Any) -> bytes:
+    """Ledger rows keep the format they were first written in: sorted, compact, raw UTF-8."""
     return json.dumps(
         value,
         sort_keys=True,
@@ -225,7 +209,7 @@ def _atomic_json_write(path: Path, payload: Mapping[str, Any]) -> None:
             mode="wb", prefix=f".{path.name}.", suffix=".partial", dir=path.parent, delete=False
         ) as handle:
             temporary = Path(handle.name)
-            handle.write(_canonical_json(payload) + b"\n")
+            handle.write(_ledger_json(payload) + b"\n")
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary, path)
@@ -247,7 +231,7 @@ def _atomic_json_write(path: Path, payload: Mapping[str, Any]) -> None:
 
 
 def _report_summary(report: SearchReport) -> dict[str, Any]:
-    """Serialize bounded report metadata for a worker manifest."""
+    """Serialise bounded report metadata for a worker manifest."""
 
     return {
         "candidate_count": report.candidate_count,
@@ -261,7 +245,7 @@ def _report_summary(report: SearchReport) -> dict[str, Any]:
 
 
 def _empty_search_report() -> SearchReport:
-    """Construct the explicit report for an empty modulo partition."""
+    """Construct the report for an empty modulo partition."""
 
     returns: list[float] = []
     return SearchReport(
@@ -305,10 +289,10 @@ def run_worker_search(
 ) -> DistributedWorkerResult:
     """Run one deterministic candidate partition and seal its worker ledger.
 
-    ``bars`` is intentionally passed intact to :func:`walk_forward_search`;
+    ``bars`` is passed intact to :func:`walk_forward_search`;
     only candidates are partitioned.  ``ledger_path`` takes precedence over
     ``ledger_dir``.  A manifest is written next to the ledger unless an
-    explicit path is supplied.  The manifest is advisory provenance; trial
+    path is supplied.  The manifest is advisory provenance; trial
     rows themselves remain the authoritative durable record.
     """
 
@@ -339,7 +323,7 @@ def run_worker_search(
 
     # The search layer rejects an empty candidate stream.  Empty modulo
     # partitions are legitimate when worker_count exceeds the stream length;
-    # report this explicitly instead of silently fabricating trial rows.  A
+    # report this instead of silently fabricating trial rows.  A
     # caller can still merge the non-empty workers.
     if local_count_hint == 0:
         report = _empty_search_report()
@@ -385,13 +369,6 @@ def run_worker_search(
     )
 
 
-# More explicit aliases used by callers that think in terms of distributed
-# jobs rather than workers.
-run_distributed_search = run_worker_search
-run_partitioned_search = run_worker_search
-distributed_search = run_worker_search
-
-
 def _load_ledger_rows(path: Path) -> tuple[dict[str, Any], ...]:
     try:
         rows = ExperimentLedger(path).read_records()
@@ -415,7 +392,7 @@ def _trial_identity(row: Mapping[str, Any], source: Path) -> tuple[str, ...]:
 
     trial_id = row.get("trial_id")
     if isinstance(trial_id, str) and trial_id:
-        # The explicit trial_id is the strongest identity contract.  It also
+        # The trial_id is the strongest identity contract.  It also
         # lets merge validate generic ledgers that do not expose the expanded
         # experiment/fold/spec fields.
         return ("trial_id", trial_id)
@@ -526,7 +503,7 @@ def merge_worker_ledgers(
                 raise LedgerMergeError(f"worker ledger {path} has a different experiment_id")
             identity = _trial_identity(row, path)
             try:
-                canonical = _canonical_json(row)
+                canonical = _ledger_json(row)
             except (TypeError, ValueError) as error:
                 raise LedgerMergeError(
                     f"worker ledger {path} contains a non-canonical JSON value"
@@ -568,7 +545,7 @@ def merge_worker_ledgers(
         ) as handle:
             temporary = Path(handle.name)
             for row in ordered:
-                handle.write(_canonical_json(row) + b"\n")
+                handle.write(_ledger_json(row) + b"\n")
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary, target)
@@ -593,10 +570,6 @@ def merge_worker_ledgers(
         duplicate_row_count=duplicate_count,
         experiment_ids=tuple(sorted(experiments)),
     )
-
-
-merge_ledgers = merge_worker_ledgers
-merge_experiment_ledgers = merge_worker_ledgers
 
 
 _FORK_SHARED_BARS: tuple[Bar, ...] | None = None
@@ -657,14 +630,14 @@ def launch_local_workers(
 ) -> tuple[DistributedWorkerResult, ...]:
     """Launch a bounded set of local worker processes.
 
-    This helper is intentionally opt-in and conservative.  Bars are
-    materialized once so they can be pickled by the ``spawn`` start method.
+    This helper is opt-in and conservative.  Bars are
+    materialised once so they can be pickled by the ``spawn`` start method.
     On POSIX, ``fork_share_bars=True`` instead creates workers from that
-    materialized parent image.  The immutable bar objects are then shared by
+    materialised parent image.  The bar objects are then shared by
     copy-on-write and are never included in a per-worker task payload.
     The candidate stream is passed as-is and remains lazy inside each child;
     built-in momentum streams are picklable, while an arbitrary one-shot
-    generator fails to pickle rather than being silently materialized.
+    generator fails to pickle rather than being silently materialised.
     ``worker_indexes`` can select a disjoint subset of global partitions for
     multi-host launches; it defaults to every index.  ``max_workers`` defaults
     to the smaller of the selected partition count and local CPU count.  Hosts
@@ -740,7 +713,7 @@ def launch_local_workers(
         except (NotImplementedError, PermissionError):
             # Restricted containers can lack POSIX semaphores.  Preserve the
             # bounded-launcher contract with a deterministic sequential fallback;
-            # ordinary worker exceptions are intentionally not swallowed.
+            # ordinary worker exceptions are not swallowed.
             results = [worker_entry(payload) for payload in payloads]
         else:
             with pool:
@@ -753,31 +726,15 @@ def launch_local_workers(
     return tuple(sorted(results, key=lambda item: item.worker_index))
 
 
-run_local_workers = launch_local_workers
-launch_bounded_local_workers = launch_local_workers
-
-
 __all__ = [
     "CandidatePartition",
     "DistributedWorkerResult",
     "LedgerMergeError",
     "LedgerMergeResult",
     "default_worker_ledger_path",
-    "distributed_search",
-    "distributed_candidate_partition",
-    "iter_candidate_partition",
-    "ledger_path_for_worker",
-    "launch_bounded_local_workers",
     "launch_local_workers",
-    "merge_experiment_ledgers",
-    "merge_ledgers",
     "merge_worker_ledgers",
-    "partition_candidate_stream",
     "partition_candidates",
     "partition_sizes",
-    "run_distributed_search",
-    "run_local_workers",
-    "run_partitioned_search",
     "run_worker_search",
-    "worker_ledger_path",
 ]

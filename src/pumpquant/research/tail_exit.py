@@ -1,6 +1,6 @@
 """Pre-registered extreme-tail event signals with causal dynamic exits.
 
-This module is intentionally narrower than ``fresh_event_research``.  It
+Narrower than ``fresh_event_research``, it
 tests whether the negative fixed-horizon result was caused by exit design and
 tail dilution, rather than opening a new unrestricted feature search.  Signal
 thresholds are still fit only inside each chronological training fold.  Exit

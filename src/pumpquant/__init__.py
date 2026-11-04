@@ -5,7 +5,7 @@ The package follows the path a trade idea takes, from raw chain data to a verdic
     acquisition   fetch and archive raw transactions, blocks and streams
     decoding      decode Solana wire bytes and Pump/PumpSwap program events
     state         rebuild ordered market state, with when it was observable
-    features      compute causal features at an explicit decision boundary
+    features      compute causal features at a decision boundary
     pricing       quote trades exactly, in integer protocol units
     execution     replay entries and exits with latency, retries, fees and capital
     research      search strategies chronologically, with every trial recorded

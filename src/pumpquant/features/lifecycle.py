@@ -1,10 +1,10 @@
-"""Bounded launch/lifecycle features for normalized Pump/PumpSwap swaps.
+"""Bounded launch/lifecycle features for normalised Pump/PumpSwap swaps.
 
-The normalizer and the archive adapters deliberately publish different
-datasets.  This module is the small, deterministic bridge between them: it
+The normaliser and the archive adapters publish different
+datasets.  This is the small, deterministic bridge between them: it
 indexes only lifecycle anchors in a disk-backed SQLite database and then
-streams the normalized swaps in chain order.  No complete 30-day swap table is
-materialized in memory.
+streams the normalised swaps in chain order.  No complete 30-day swap table is
+materialised in memory.
 
 Lifecycle input may be either an adapter ``pumpquant.trade_event_dataset``
 manifest (with ``lifecycle_shards``) or a destination manifest containing the
@@ -15,7 +15,6 @@ files have all been sealed in a staging directory.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import shutil
@@ -27,7 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
-from pumpquant.core.hashing import sha256_file
+from pumpquant.core.hashing import canonical_json, sha256_bytes, sha256_file
 from pumpquant.core.io import iter_swap_event_batches
 from pumpquant.core.schema import SwapEvent, VenuePhase
 
@@ -51,16 +50,6 @@ DEFAULT_BATCH_SIZE = 32_768
 
 class LifecycleFeatureError(RuntimeError):
     """A source, identity, lifecycle, or publication invariant failed."""
-
-
-def _canonical_json(value: object) -> bytes:
-    return (
-        json.dumps(value, allow_nan=False, separators=(",", ":"), sort_keys=True) + "\n"
-    ).encode("utf-8")
-
-
-def _sha256_bytes(value: bytes) -> str:
-    return hashlib.sha256(value).hexdigest()
 
 
 def _mapping(value: object, label: str) -> Mapping[str, object]:
@@ -112,7 +101,7 @@ def _require_arrow() -> tuple[Any, Any]:
 
 
 def _schema_hash(schema: Any) -> str:
-    return _sha256_bytes(schema.serialize().to_pybytes())
+    return sha256_bytes(schema.serialize().to_pybytes())
 
 
 def _json_object(path: Path, label: str) -> tuple[Mapping[str, object], str, bytes]:
@@ -121,7 +110,7 @@ def _json_object(path: Path, label: str) -> tuple[Mapping[str, object], str, byt
         payload = _mapping(json.loads(raw), label)
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
         raise LifecycleFeatureError(f"{label} is invalid JSON: {path}") from error
-    return payload, _sha256_bytes(raw), raw
+    return payload, sha256_bytes(raw), raw
 
 
 @dataclass(frozen=True, slots=True)
@@ -403,7 +392,7 @@ def _resolve_lifecycle_input(path: str | Path) -> _LifecycleInput:
     # Destination manifests describe files relative to the destination root;
     # adapter manifests describe files relative to the trade-event root.  A
     # caller may pass the nested ``trade-events`` directory directly, in which
-    # case the exact-path behavior is naturally selected.
+    # case the exact-path behaviour is naturally selected.
     shards, row_count, schema_sha = _manifest_shards(
         root, shard_manifest, destination_summary=summary
     )
@@ -1024,7 +1013,7 @@ def materialize_lifecycle_features(
     *,
     batch_size: int = DEFAULT_BATCH_SIZE,
 ) -> dict[str, object]:
-    """Join normalized swaps to lifecycle anchors with bounded memory."""
+    """Join normalised swaps to lifecycle anchors with bounded memory."""
 
     if isinstance(batch_size, bool) or not isinstance(batch_size, int) or batch_size <= 0:
         raise LifecycleFeatureError("batch_size must be a positive integer")
@@ -1156,9 +1145,9 @@ def materialize_lifecycle_features(
             ),
             "phase_source": "normalized_swap_phase",
         }
-        audit_body = _canonical_json(audit_payload)
+        audit_body = canonical_json(audit_payload)
         _write_bytes(staging / "audit.json", audit_body)
-        files["audit.json"] = {"byte_count": len(audit_body), "sha256": _sha256_bytes(audit_body)}
+        files["audit.json"] = {"byte_count": len(audit_body), "sha256": sha256_bytes(audit_body)}
         normalized_identity: dict[str, object] = {
             "path": str(normalized.parquet_path),
             "manifest_path": str(normalized.manifest_path),
@@ -1203,7 +1192,7 @@ def materialize_lifecycle_features(
             "audit_sha256": files["audit.json"]["sha256"],
             "files": files,
         }
-        _write_bytes(staging / "manifest.json", _canonical_json(manifest_payload))
+        _write_bytes(staging / "manifest.json", canonical_json(manifest_payload))
         directory_fd = os.open(staging, os.O_RDONLY)
         try:
             os.fsync(directory_fd)
@@ -1221,10 +1210,6 @@ def materialize_lifecycle_features(
             shutil.rmtree(staging, ignore_errors=True)
 
 
-materialize = materialize_lifecycle_features
-run = materialize_lifecycle_features
-
-
 __all__ = [
     "AUDIT_KIND",
     "FEATURES_KIND",
@@ -1233,7 +1218,5 @@ __all__ = [
     "LIFECYCLE_PHYSICAL_ORDER",
     "PHYSICAL_ORDER",
     "SCHEMA_VERSION",
-    "materialize",
     "materialize_lifecycle_features",
-    "run",
 ]

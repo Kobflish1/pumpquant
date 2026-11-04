@@ -1,14 +1,14 @@
 """Pure-Python, fail-closed capacity and capital-gate primitives.
 
-This module is intentionally independent of the research runners and of the
+Independent of the research runners and of the
 chronological holdout.  It deals only in already sealed development evidence:
 integer token/quote amounts, causal FX points, and landed entry/exit records.
 No value in this module is a live-trading recommendation.  In particular, a
 finite starting-capital ladder is *not* a proof of a global maximum unless the
-caller supplies an explicit exhaustive or bounded proof.
+caller supplies an exhaustive or bounded proof.
 
 Money is represented by :class:`~decimal.Decimal` only at USD boundaries and
-by integers at token/quote boundaries.  ``bool`` is deliberately rejected at
+by integers at token/quote boundaries.  ``bool`` is rejected at
 every integer boundary (``bool`` is an ``int`` subclass in Python).
 """
 
@@ -51,8 +51,6 @@ STARTING_CAPITAL_LADDER_USD: Final[tuple[int, ...]] = (
     10_000_000,
 )
 # Naming variants are useful to callers loading a preregistered manifest.
-DEFAULT_STARTING_CAPITAL_LADDER_USD = STARTING_CAPITAL_LADDER_USD
-DEFAULT_NOTIONAL_LADDER = STARTING_CAPITAL_LADDER_USD
 
 
 class CapacityGateError(ValueError):
@@ -136,16 +134,6 @@ class CausalFxPoint:
         _integer(self.available_at_ns, "available_at_ns")
         object.__setattr__(self, "close_usd", _decimal(self.close_usd, "close_usd", positive=True))
 
-    @property
-    def usd_per_quote(self) -> Decimal:
-        """Descriptive alias used by callers that do not call the quote SOL."""
-
-        return self.close_usd
-
-
-FxPoint = CausalFxPoint
-FxRate = CausalFxPoint
-
 
 @dataclass(frozen=True, slots=True)
 class CausalFxSeries:
@@ -222,7 +210,7 @@ class RealizedExit:
     ``net_quote_atomic`` is output after the entry principal, all leg costs,
     fees, and adverse execution adjustments have already been accounted for by
     the exact execution caller.  A signed value is allowed because a loss is a
-    valid realized outcome.
+    valid realised outcome.
     """
 
     trade_id: str
@@ -237,9 +225,6 @@ class RealizedExit:
         decimals = _integer(self.quote_decimals, "quote_decimals")
         if decimals != SOL_DECIMALS:
             raise CapacityGateError("quote_decimals must be exactly 9 for SOL exits")
-
-
-ExitRecord = RealizedExit
 
 
 @dataclass(frozen=True, slots=True)
@@ -260,7 +245,7 @@ class CompleteUtcDay:
 
 @dataclass(frozen=True, slots=True)
 class DailyAttribution:
-    """Realized net result for one complete UTC day."""
+    """Realised net result for one complete UTC day."""
 
     day_start_ns: int
     net_usd: Decimal
@@ -280,9 +265,6 @@ class DailyAttribution:
     @property
     def day(self) -> date:
         return datetime.fromtimestamp(self.day_start_ns // 1_000_000_000, tz=UTC).date()
-
-
-CapacityDay = DailyAttribution
 
 
 @dataclass(frozen=True, slots=True)
@@ -319,9 +301,6 @@ class FourDayAttribution:
         return tuple(day.net_usd for day in self.days)
 
 
-CapacityAttribution = FourDayAttribution
-
-
 def utc_day_start_ns(timestamp_ns: int) -> int:
     """Return the UTC-midnight bucket for an epoch-nanosecond timestamp."""
 
@@ -351,7 +330,7 @@ def earliest_four_complete_days(
     """Select the earliest four complete UTC days in a sealed half-open range.
 
     The bounds themselves are evidence that all nanoseconds in the range are
-    available.  Optional explicit day records are checked as an additional
+    available.  Optional day records are checked as an additional
     completeness seal; a missing or false record fails closed.
     """
 
@@ -460,11 +439,6 @@ def attribute_realized_net(
         tuple(DailyAttribution(day, buckets[day], counts[day], complete=True) for day in selected),
         target_usd=target_usd,
     )
-
-
-# Short aliases used by runners and manifests.
-attribute_exit_day_net = attribute_realized_net
-attribute_utc_exit_days = attribute_realized_net
 
 
 def passes_daily_target(
@@ -631,16 +605,10 @@ def pumpswap_capacity_predicate(
     )
 
 
-pump_real_inventory_capacity = pump_capacity_predicate
-pumpswap_real_inventory_capacity = pumpswap_capacity_predicate
-check_real_inventory_capacity = real_inventory_capacity
-evaluate_real_inventory_capacity = real_inventory_capacity
-
-
 def has_real_inventory_capacity(**kwargs: object) -> bool:
-    """Boolean convenience wrapper preserving the explicit predicate reason."""
+    """Boolean convenience wrapper preserving the predicate reason."""
 
-    # Keep this wrapper intentionally narrow at runtime: callers wanting the
+    # Keep this wrapper narrow at runtime: callers wanting the
     # rejection reason should use ``real_inventory_capacity`` directly.
     result = real_inventory_capacity(
         venue=cast(str | Venue, kwargs.pop("venue")),
@@ -835,7 +803,7 @@ class SharedWalletReplay:
         for trade in accepted:
             # WalletTrade performs the per-trade checks; repeat the identity
             # checks here so this object remains fail-closed if construction is
-            # ever changed to bypass that initializer.
+            # ever changed to bypass that initialiser.
             if not isinstance(trade.entry_chain_key, ChainKey) or not isinstance(
                 trade.exit_chain_key, ChainKey
             ):
@@ -960,7 +928,7 @@ class SharedWalletReplay:
 
         profitable_quote = final_quote > starting_quote
         profitable_usd = final_usd > starting_usd
-        # ``passed`` is deliberately a wallet-invariant flag only.  The B
+        # ``passed`` is a wallet-invariant flag only.  The B
         # rung applies the four-day USD target separately; a terminal FX
         # revaluation must never create a false negative for that criterion.
         passed = bool(accepted and minimum_equity >= 0 and final_quote >= 0)
@@ -982,9 +950,6 @@ class SharedWalletReplay:
     @property
     def realized_exits(self) -> tuple[RealizedExit, ...]:
         return tuple(trade.realized_exit() for trade in self.accepted_trades)
-
-
-SharedCapitalReplay = SharedWalletReplay
 
 
 def _trade_from_object(value: object) -> WalletTrade:
@@ -1208,7 +1173,7 @@ def replay_shared_wallet(
         cash -= trade.total_entry_debit_atomic
         if cash < 0:
             # This is unreachable after the check above, but keeping the
-            # invariant explicit protects future changes to debit accounting.
+            # invariant protects future changes to debit accounting.
             raise CapacityGateError("wallet cash became negative")
         open_trades.append(trade)
         accepted.append(trade)
@@ -1358,7 +1323,6 @@ class LadderSearchResult:
         return self.smallest_passing_usd is not None
 
 
-CapacitySearchResult = LadderSearchResult
 NotionalLadder = tuple[int, ...]
 
 
@@ -1445,7 +1409,7 @@ def evaluate_starting_capital_ladder(
         # Attribution is never accepted from a callback.  The callback is
         # required to return exactly one sealed wallet ledger, and this kernel
         # recomputes the four daily nets solely from that wallet's unique
-        # realized exits below.
+        # realised exits below.
         if type(factory_result) is not SharedWalletReplay:
             raise CapacityGateError("per-rung replay result is invalid")
         wallet = factory_result
@@ -1475,7 +1439,7 @@ def evaluate_starting_capital_ladder(
         # A replay can have no exits for a day.  Attribution still includes the
         # day (net zero), preserving the every-day pass condition.  There is no
         # supplied-attribution escape hatch: all USD attribution is recomputed
-        # from the wallet's SOL-decimal realized exits.
+        # from the wallet's SOL-decimal realised exits.
         attribution = attribute_realized_net(
             wallet.realized_exits,
             fx,
@@ -1512,9 +1476,6 @@ def report_maximum(result: LadderSearchResult, proof: LadderProof) -> Decimal | 
 # Compatibility spelling for orchestration code that calls the ladder a
 # notional ladder.  It is the same pure function and carries the same proof
 # requirement; no second implementation is allowed to diverge.
-evaluate_notional_ladder = evaluate_starting_capital_ladder
-search_notional_ladder = evaluate_starting_capital_ladder
-search_capacity_ladder = evaluate_starting_capital_ladder
 
 
 def assemble_capacity_report(
@@ -1574,7 +1535,7 @@ def assemble_capacity_report(
         "holdout_accessed": False,
         "holdout_unlocked": False,
         # This v1 kernel never confers live/deployment readiness.  Historical
-        # landing/MEV telemetry is a separate later authorization boundary.
+        # landing/MEV telemetry is a separate later authorisation boundary.
         "simulated_only": True,
         "deployment_readiness": False,
         "search_complete": ladder.search_complete,
@@ -1597,7 +1558,7 @@ def assemble_capacity_report(
 
 
 def deterministic_report_json(report: Mapping[str, object]) -> str:
-    """Serialize a report with stable ordering and no floating-point NaN."""
+    """Serialise a report with stable ordering and no floating-point NaN."""
 
     def reject_float(value: object) -> None:
         if isinstance(value, float):
@@ -1619,23 +1580,15 @@ def deterministic_report_json(report: Mapping[str, object]) -> str:
 
 
 __all__ = [
-    "CapacityDay",
-    "CapacityAttribution",
-    "CapacitySearchResult",
     "CapacityGateError",
     "ChainKey",
     "CausalFxPoint",
     "CausalFxSeries",
     "CompleteUtcDay",
     "DAY_NS",
-    "DEFAULT_NOTIONAL_LADDER",
-    "DEFAULT_STARTING_CAPITAL_LADDER_USD",
     "DailyAttribution",
-    "ExitRecord",
     "FOUR_DAYS",
     "FourDayAttribution",
-    "FxPoint",
-    "FxRate",
     "LadderProof",
     "LadderRung",
     "LadderSearchResult",
@@ -1645,7 +1598,6 @@ __all__ = [
     "SOL_DECIMALS",
     "STARTING_CAPITAL_LADDER_USD",
     "SharedWalletReplay",
-    "SharedCapitalReplay",
     "NotionalLadder",
     "TradeSide",
     "USD_DAILY_CAPACITY_TARGET",
@@ -1653,23 +1605,14 @@ __all__ = [
     "WalletDecision",
     "WalletTrade",
     "assemble_capacity_report",
-    "attribute_exit_day_net",
     "attribute_realized_net",
-    "attribute_utc_exit_days",
     "deterministic_report_json",
     "earliest_four_complete_days",
     "evaluate_starting_capital_ladder",
-    "evaluate_notional_ladder",
-    "search_notional_ladder",
-    "search_capacity_ladder",
     "has_real_inventory_capacity",
-    "check_real_inventory_capacity",
-    "evaluate_real_inventory_capacity",
     "pump_capacity_predicate",
-    "pump_real_inventory_capacity",
     "passes_daily_target",
     "pumpswap_capacity_predicate",
-    "pumpswap_real_inventory_capacity",
     "real_inventory_capacity",
     "replay_shared_wallet",
     "report_maximum",

@@ -1,6 +1,6 @@
 """Chronological shared-wallet replay for exact, size-dependent trade quotes.
 
-The quoting callback is deliberately injected.  This keeps portfolio accounting
+The quoting callback is injected.  This keeps portfolio accounting
 separate from protocol math while still requiring every accepted opportunity to
 be re-quoted at the wallet's actual dynamic order size.
 """

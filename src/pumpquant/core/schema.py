@@ -1,8 +1,8 @@
-"""Validated, immutable domain records used by the research pipeline.
+"""Validated, domain records used by the research pipeline.
 
 Timestamps remain nanoseconds. Numeric amounts in this Python slice are
 decimal-normalized and source decimals are retained when known; authoritative
-atomic integers must remain in the separate immutable raw/canonical archive.
+atomic integers must remain in the separate raw/canonical archive.
 """
 
 from __future__ import annotations
@@ -63,7 +63,7 @@ def _require_nonnegative(name: str, value: object) -> None:
 
 @dataclass(frozen=True, slots=True)
 class SwapEvent:
-    """One normalized on-chain swap with its post-swap reserve snapshot.
+    """One normalised on-chain swap with its post-swap reserve snapshot.
 
     ``ordering_key`` is chain-native and deterministic.  Block time is used for
     time bucketing, but not to break ties because several transactions commonly
@@ -160,7 +160,7 @@ class SwapEvent:
 
     @property
     def ordering_key(self) -> tuple[int, int, int, str]:
-        """Canonical total-order key within the normalized chain stream."""
+        """Canonical total-order key within the normalised chain stream."""
 
         return (self.slot, self.tx_index, self.instruction_index, self.event_id)
 
@@ -247,18 +247,6 @@ class Bar:
                 raise ValueError("available_at_ns cannot precede bar close")
         if self.token_age_seconds is not None:
             _require_nonnegative("token_age_seconds", self.token_age_seconds)
-
-    @property
-    def start_ns(self) -> int:
-        """Short alias for callers that already encode time in the field name."""
-
-        return self.start_time_ns
-
-    @property
-    def end_ns(self) -> int:
-        """Short alias for callers that already encode time in the field name."""
-
-        return self.end_time_ns
 
     @property
     def ordering_key(self) -> tuple[str, int, str]:

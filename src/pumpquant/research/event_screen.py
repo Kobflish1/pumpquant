@@ -1,6 +1,6 @@
 """Pre-registered event-level alpha screening over causal microstructure rows.
 
-This is the information-screen tier between event feature materialization and
+This is the information-screen tier between event feature materialisation and
 the slower strategy replay.  It evaluates one directional measurement at a
 time, uses delayed constant-product round-trip labels, samples non-overlapping
 event horizons, and aggregates outcomes by whole token before selection.
@@ -661,10 +661,10 @@ def create_event_labels_sql(
     output_table: str = "event_labels",
     signal_features: Sequence[str] | None = None,
 ) -> str:
-    """Create delayed, capacity-limited normalized CP labels in DuckDB SQL.
+    """Create delayed, capacity-limited normalised CP labels in DuckDB SQL.
 
     The caller must register ``source_events`` and ``launches``.  Atomic source
-    reserves are converted to normalized doubles only inside this screening
+    reserves are converted to normalised doubles only inside this screening
     label.  Protocol-atomic replay remains a later survivor gate.
     """
 

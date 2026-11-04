@@ -333,7 +333,8 @@ class SearchTests(unittest.TestCase):
             first = walk_forward_search(bars, candidates, config, ledger=ledger_path, **common)
             rows_before = ledger_path.read_text()
             with patch(
-                "pumpquant.research.search._evaluate", side_effect=AssertionError("replayed")
+                "pumpquant.research.search._evaluate_prepared",
+                side_effect=AssertionError("replayed"),
             ):
                 resumed = walk_forward_search(
                     bars,

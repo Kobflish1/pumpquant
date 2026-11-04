@@ -1,17 +1,17 @@
 """Manifest-bound, streaming access to archived BigQuery ``Instructions`` rows.
 
-The archive writer in :mod:`pumpquant.bigquery_archive` intentionally keeps the
-BigQuery result values in Parquet.  This module is the small read side of that
+The archive writer in :mod:`pumpquant.acquisition.bigquery.archive` keeps the
+BigQuery result values in Parquet.  This is the small read side of that
 contract: it verifies the manifest and every shard before returning the first
 row, then decodes one bounded Parquet record batch at a time.  The returned
-records are discovery records, not :class:`pumpquant.schema.SwapEvent`
+records are discovery records, not :class:`pumpquant.core.schema.SwapEvent`
 instances.  In particular, strings in ``parsed``/``data`` and the nested
 ``params`` values are retained as supplied by BigQuery.
 
 The source is a historical BigQuery seed.  It is useful for discovery and for
 joining later lossless captures, but it is not a true L1 transaction archive
 and it does not contain an observed order book (there is no true L2 for
-Pump/PumpSwap).  Those limitations are deliberately represented on both the
+Pump/PumpSwap).  Those limitations are represented on both the
 reader and each row through capability labels.
 """
 
@@ -41,7 +41,7 @@ except ImportError:  # pragma: no cover - exercised in minimal installs
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 
 # These are the aliases emitted by ``build_pump_instruction_plan``.  They are
-# intentionally kept as a tuple so field/order checks are deterministic.
+# kept as a tuple so field/order checks are deterministic.
 DISCOVERY_COLUMNS: tuple[str, ...] = (
     "block_slot",
     "block_hash",
@@ -209,7 +209,7 @@ class RawInstructionCapabilities:
 
 @dataclass(frozen=True, slots=True)
 class RawInstructionRow:
-    """One immutable BigQuery discovery row.
+    """One BigQuery discovery row.
 
     The first fourteen attributes are exactly the columns selected by the
     ``pump_instruction_discovery_v1`` query.  Repeated values are tuples so a
@@ -456,7 +456,7 @@ class RawInstructionArchiveReader:
     :meth:`iter_rows` loads the on-disk canonical manifest, hashes every listed
     shard, and checks Parquet metadata before yielding any row.  A Parquet
     record batch is converted to Python values at a time; no whole-day table is
-    materialized in memory.
+    materialised in memory.
     """
 
     archive_root: str | Path
@@ -559,7 +559,7 @@ class RawInstructionArchiveReader:
 
     def _preflight(self) -> ArchiveManifest:
         manifest = self._manifest_on_disk()
-        # This is intentionally before opening a Parquet iterator: a caller
+        # This is before opening a Parquet iterator: a caller
         # never receives a row from a partially/tampered archive.
         verify_archive_manifest(manifest, self.root)
         _, pq = _require_pyarrow()
@@ -649,12 +649,6 @@ class RawInstructionArchiveReader:
         return self.iter_rows()
 
 
-# Concise aliases are useful to callers that do not need to retain the reader
-# object, while keeping one implementation and one validation path.
-RawInstructionsReader = RawInstructionArchiveReader
-RawInstructionReader = RawInstructionArchiveReader
-
-
 def stream_raw_instructions(
     archive_root: str | Path,
     manifest: ArchiveManifest | str | Path,
@@ -701,23 +695,11 @@ def stream_raw_instructions(
     yield from reader.iter_rows()
 
 
-iter_raw_instructions = stream_raw_instructions
-read_raw_instructions = stream_raw_instructions
-iter_raw_instruction_rows = stream_raw_instructions
-stream_raw_instruction_rows = stream_raw_instructions
-
-
 __all__ = [
     "DISCOVERY_COLUMNS",
     "RawInstructionArchiveReader",
     "RawInstructionCapabilities",
-    "RawInstructionReader",
     "RawInstructionRow",
     "RawInstructionSourceLocator",
-    "RawInstructionsReader",
-    "iter_raw_instructions",
-    "iter_raw_instruction_rows",
-    "read_raw_instructions",
     "stream_raw_instructions",
-    "stream_raw_instruction_rows",
 ]

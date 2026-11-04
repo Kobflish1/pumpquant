@@ -1,9 +1,9 @@
 """Joint, distributionally conservative execution-policy selection.
 
-The optimizer does not optimize fees, retries, slippage, routes, and size in
+The optimiser does not optimise fees, retries, slippage, routes, and size in
 isolation.  Each candidate is a complete executable action bundle.  Its
 outcomes must already include fills, misses, failed-attempt fees, AMM impact,
-rent, and any realized exit credit.  Entry always competes with the zero-P&L
+rent, and any realised exit credit.  Entry always competes with the zero-P&L
 ``skip`` action; exits cannot skip an open risk and therefore select the best
 supported loss-control bundle even when all choices have negative utility.
 """

@@ -1,7 +1,7 @@
 """Quality-first, multi-family alpha tournament orchestration.
 
 Stage one compares one directional feature at a time under common execution
-profiles.  Risk measurements are intentionally excluded as standalone alpha
+profiles.  Risk measurements are excluded as standalone alpha
 and may only be added to survivors as gates.  Pairwise combinations are built
 from caller-supplied survivors, which prevents an immediate combinatorial
 explosion and keeps the complete trial denominator auditable.
@@ -306,7 +306,7 @@ def default_single_signal_specs(
     min_age_seconds: float = 5.0,
     max_age_seconds: float = 600.0,
 ) -> tuple[AlphaStrategySpec, ...]:
-    """Materialize the deliberately bounded stage-one quality grid."""
+    """Materialise the bounded stage-one quality grid."""
 
     specs: list[AlphaStrategySpec] = []
     seen: set[str] = set()
@@ -561,7 +561,7 @@ def _selection_key(
     if not evaluation.eligible:
         return (-math.inf, -math.inf, -math.inf, -math.inf, evaluation.candidate_sha256)
     # Every candidate in a fold uses the same quote notional and execution
-    # model. Prefer realized quote profit after all modeled costs over a sparse,
+    # model. Prefer realised quote profit after all modelled costs over a sparse,
     # high-percentage anomaly. RoAC and PSR remain deterministic tie-breakers.
     return (
         evaluation.total_quote_pnl,

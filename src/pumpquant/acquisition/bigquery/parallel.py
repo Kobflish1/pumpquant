@@ -1,13 +1,13 @@
 """Read-only parallel transport for an existing BigQuery result table.
 
-This module intentionally does not import the BigQuery client and never calls
+This module does not import the BigQuery client and never calls
 ``jobs.query`` (or any other POST endpoint).  A caller must supply an already
-authorized, read-only HTTP session factory and an existing job or table
+authorised, read-only HTTP session factory and an existing job or table
 reference.  The transport is useful for a completed query whose anonymous
 destination table is still within BigQuery's retention window.
 
 ``tabledata.list`` is a cursor API, but it also accepts a zero-based
-``startIndex``.  We split the immutable result table into disjoint half-open
+``startIndex``.  We split the result table into disjoint half-open
 row ranges, use ``startIndex`` only for the first request in each range, then
 follow that range's opaque ``pageToken``.  Every range must return exactly its
 planned number of rows.  Consequently a successful run has a mechanical
@@ -16,10 +16,10 @@ is the source identity, not an inferred ordering key.
 
 The optional probe reads two small ranges twice and compares canonical row
 hashes.  It is a diagnostic for servers or transports that ignore
-``startIndex``; it is deliberately separate from the reader because equal
+``startIndex``; it is separate from the reader because equal
 rows are legal query output and therefore content hashes alone cannot prove
 identity.  Storage Read API streams are the preferred high-throughput backend
-when they are explicitly enabled and IAM-tested; this module is the bounded
+when they are enabled and IAM-tested; this module is the bounded
 REST fallback.
 """
 
@@ -360,7 +360,7 @@ def iter_indexed_rows(chunks: Iterator[TableDataChunk]) -> Iterator[tuple[int, J
 
     A sink that needs to retain result identity should persist this offset (or
     a range manifest that implies it) alongside the REST row.  SQL output
-    order remains intentionally opaque; the offset is the only identity this
+    order remains opaque; the offset is the only identity this
     transport can establish without changing the original query.
     """
 
@@ -382,7 +382,7 @@ def probe_start_index_semantics(
 ) -> StartIndexProbe:
     """Repeat two adjacent ranges and compare canonical row hashes.
 
-    The probe is intentionally bounded (at most ``2 * probe_rows`` rows per
+    The probe is bounded (at most ``2 * probe_rows`` rows per
     pass) and should be run before a large parallel read.  Repeated reads of
     each range must have identical hashes.  Distinct ranges must not share row
     hashes for the probe to report a proof; duplicate-valued SQL rows make

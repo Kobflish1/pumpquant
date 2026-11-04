@@ -4,7 +4,7 @@ The full lifecycle feature dataset repeats anchor columns once per swap and is
 therefore much larger than the source sidecar.  This module takes the shorter
 path needed by bar construction: it verifies each lifecycle manifest/shard,
 checks global chain order and event identity through the same disk-backed index
-as the feature materializer, and atomically writes only true Pump launch
+as the feature materialiser, and atomically writes only true Pump launch
 anchors.  It never substitutes a first-observed swap timestamp.
 """
 
@@ -60,7 +60,7 @@ def export_lifecycle_launch_times(
     """Verify lifecycle sidecars and emit ``{mint: launch_block_time_ns}``.
 
     Inputs must be supplied in global chain order.  They may be direct
-    ``pumpquant.trade_event_dataset`` roots or materialized chunk wrappers.
+    ``pumpquant.trade_event_dataset`` roots or materialised chunk wrappers.
     Duplicate lifecycle identities, order overlap, multiple launch events for
     one mint, or a launch without a block timestamp fail before publication.
     """

@@ -10,7 +10,6 @@ import pytest
 from pumpquant.decoding.instruction_accounts import (
     INSTRUCTION_ACCOUNT_SPECS,
     PINNED_IDL_REVISION,
-    PINNED_LAYOUT_REVISION,
     PUMP_IDL_SOURCE,
     PUMPSWAP_IDL_SOURCE,
     AccountListTypeError,
@@ -37,7 +36,7 @@ def _intent(program_id: str, name: str) -> CandidateIntent:
                 discriminator=discriminator,
                 args={},
                 raw_data=discriminator,
-                layout_revision=PINNED_LAYOUT_REVISION,
+                layout_revision=PINNED_IDL_REVISION,
             )
     raise AssertionError(f"missing account spec for {program_id}/{name}")
 
@@ -141,7 +140,7 @@ def test_result_constructor_rejects_non_candidate_flags() -> None:
             discriminator=bytes((24, 30, 200, 40, 5, 28, 7, 119)),
             account_positions=tuple((name, _keys(1)[0]) for name in ("mint",)),
             extras=(),
-            layout_revision=PINNED_LAYOUT_REVISION,
+            layout_revision=PINNED_IDL_REVISION,
             idl_revision=PINNED_IDL_REVISION,
             source_id=PUMP_IDL_SOURCE,
             candidate_only=False,

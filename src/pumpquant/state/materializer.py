@@ -1,19 +1,18 @@
-"""Bounded, manifest-last materialization of reconstructed AMM state.
+"""Bounded, manifest-last materialisation of reconstructed AMM state.
 
-The normalizer publishes one ``swaps.parquet`` file and a manifest describing
+The normaliser publishes one ``swaps.parquet`` file and a manifest describing
 its identity.  This module consumes that file in Arrow batches, delegates all
-state and quote semantics to :mod:`pumpquant.amm_state_reconstruction`, and
-publishes two schema-explicit Parquet files (post-event snapshots and quote
+state and quote semantics to :mod:`pumpquant.state.reconstruction`, and
+publishes two schema-Parquet files (post-event snapshots and quote
 levels) in one atomic directory replacement.
 
-Fee configuration is intentionally a separate, slot-bounded input.  A missing
+Fee configuration is a separate, slot-bounded input.  A missing
 schedule entry produces an ``unknown_config`` snapshot; the event's observed
 ``venue_fee_bps`` is never used as a protocol fee fallback.
 """
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import shutil
@@ -25,7 +24,7 @@ from dataclasses import asdict, dataclass, is_dataclass
 from pathlib import Path
 from typing import Any, TypeAlias, cast
 
-from pumpquant.core.hashing import sha256_file
+from pumpquant.core.hashing import canonical_json, sha256_bytes, sha256_file
 from pumpquant.core.io import iter_swap_event_batches
 from pumpquant.core.schema import Number, SwapEvent, VenuePhase
 from pumpquant.pricing.pumpswap import PumpSwapFees
@@ -49,16 +48,6 @@ DEFAULT_BATCH_SIZE = 32_768
 
 class MaterializationError(RuntimeError):
     """A source, schedule, output, or publication invariant failed."""
-
-
-def _canonical_json(value: object) -> bytes:
-    return (
-        json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False) + "\n"
-    ).encode("utf-8")
-
-
-def _sha256_bytes(value: bytes) -> str:
-    return hashlib.sha256(value).hexdigest()
 
 
 def _nonnegative_int(value: object, label: str) -> int:
@@ -145,7 +134,7 @@ def _fee_payload(value: object) -> object:
 
 
 def _config_hash(value: object) -> str:
-    return _sha256_bytes(_canonical_json(_fee_payload(value)))
+    return sha256_bytes(canonical_json(_fee_payload(value)))
 
 
 def _pumpswap_from_mapping(values: Mapping[str, object]) -> PumpSwapFees:
@@ -273,7 +262,7 @@ FeeScheduleValue: TypeAlias = FeeConfig | Mapping[str, object] | int | float | N
 
 @dataclass(frozen=True, slots=True)
 class FeeScheduleEntry:
-    """One explicit fee/config validity window.
+    """One fee/config validity window.
 
     ``start_slot`` is inclusive and ``end_slot`` is exclusive.  ``None`` is a
     deliberate unknown-config interval, not permission to infer a fee from an
@@ -423,7 +412,7 @@ class AMMFeeSchedule:
         return {"version": 1, "entries": [entry.payload() for entry in self.entries]}
 
     def sha256(self) -> str:
-        return _sha256_bytes(_canonical_json(self.payload()))
+        return sha256_bytes(canonical_json(self.payload()))
 
 
 def load_fee_schedule(path: str | Path) -> AMMFeeSchedule:
@@ -559,7 +548,7 @@ def _resolve_input(path: str | Path) -> _InputIdentity:
         actual_hash = sha256_file(parquet_path)
         if actual_hash != expected_hash:
             raise MaterializationError("normalized swaps hash does not match manifest")
-        manifest_sha = _sha256_bytes(raw_manifest)
+        manifest_sha = sha256_bytes(raw_manifest)
     if parquet_path.is_symlink() or not parquet_path.is_file():
         raise MaterializationError(f"normalized swaps Parquet is missing: {parquet_path}")
     try:
@@ -576,7 +565,7 @@ def _resolve_input(path: str | Path) -> _InputIdentity:
         if declared_schema_hash is not None:
             if not isinstance(declared_schema_hash, str) or len(declared_schema_hash) != 64:
                 raise MaterializationError("normalized swap_schema_sha256 is invalid")
-            actual_schema_hash = _sha256_bytes(parquet.schema_arrow.serialize().to_pybytes())
+            actual_schema_hash = sha256_bytes(parquet.schema_arrow.serialize().to_pybytes())
             if actual_schema_hash != declared_schema_hash:
                 raise MaterializationError("normalized swap schema hash does not match manifest")
     finally:
@@ -820,7 +809,7 @@ def materialize_amm_states(
     start_slot: int | None = None,
     end_slot: int | None = None,
 ) -> dict[str, object]:
-    """Materialize reconstructed states with bounded input/output batches.
+    """Materialise reconstructed states with bounded input/output batches.
 
     The target is replaced only after every input row has been validated and
     both Parquet writers, audit, and manifest have been sealed in staging.
@@ -946,11 +935,11 @@ def materialize_amm_states(
             "labels": list(SURFACE_LABELS),
             "not_true_l2": True,
         }
-        audit_body = _canonical_json(audit_payload)
+        audit_body = canonical_json(audit_payload)
         _write_bytes(staging / "audit.json", audit_body)
         files["audit.json"] = {
             "byte_count": len(audit_body),
-            "sha256": _sha256_bytes(audit_body),
+            "sha256": sha256_bytes(audit_body),
         }
         manifest_payload: dict[str, object] = {
             "kind": MATERIALIZED_KIND,
@@ -966,8 +955,8 @@ def materialize_amm_states(
             },
             "row_count": snapshots_written,
             "quote_row_count": quotes_written,
-            "snapshot_schema_sha256": _sha256_bytes(snapshot_schema.serialize().to_pybytes()),
-            "quote_schema_sha256": _sha256_bytes(quote_schema.serialize().to_pybytes()),
+            "snapshot_schema_sha256": sha256_bytes(snapshot_schema.serialize().to_pybytes()),
+            "quote_schema_sha256": sha256_bytes(quote_schema.serialize().to_pybytes()),
             "physical_order": list(PHYSICAL_ORDER),
             "config_sha256": config_sha,
             "config": config_payload,
@@ -979,7 +968,7 @@ def materialize_amm_states(
             "audit_sha256": files["audit.json"]["sha256"],
             "files": files,
         }
-        _write_bytes(staging / "manifest.json", _canonical_json(manifest_payload))
+        _write_bytes(staging / "manifest.json", canonical_json(manifest_payload))
         directory_fd = os.open(staging, os.O_RDONLY)
         try:
             os.fsync(directory_fd)
@@ -1026,13 +1015,6 @@ def materialize_amm_states(
             shutil.rmtree(staging, ignore_errors=True)
 
 
-# Friendly aliases used by scripts and callers that prefer a short verb.
-materialize = materialize_amm_states
-materialize_amm_state = materialize_amm_states
-materialize_amm_state_dataset = materialize_amm_states
-run = materialize_amm_states
-
-
 __all__ = [
     "AMMFeeSchedule",
     "AUDIT_KIND",
@@ -1041,9 +1023,5 @@ __all__ = [
     "MaterializationError",
     "SCHEMA_VERSION",
     "load_fee_schedule",
-    "materialize",
-    "materialize_amm_state",
-    "materialize_amm_state_dataset",
     "materialize_amm_states",
-    "run",
 ]

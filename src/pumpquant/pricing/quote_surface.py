@@ -1,9 +1,9 @@
 """Integer-only, provenance-aware PumpSwap executable quote surfaces.
 
 PumpSwap is an AMM, not an order book.  This module exposes a small adapter
-for reconstructing *executable* hypothetical levels from one immutable pool
+for reconstructing *executable* hypothetical levels from one pool
 snapshot.  Every amount is a Solana atomic integer and all arithmetic is
-delegated to :mod:`pumpquant.pumpswap_math`; there is deliberately no decimal
+delegated to :mod:`pumpquant.pricing.pumpswap`; there is no decimal
 normalisation or approximate price calculation here.
 
 The state key is the chain ordering key at which a snapshot was obtained.  A
@@ -30,7 +30,7 @@ from pumpquant.pricing.pumpswap import (
     PumpSwapQuote as MathPumpSwapQuote,
 )
 
-# These labels are intentionally stable.  They are capability statements,
+# These labels are stable.  They are capability statements,
 # not marketing names: the result is reconstructed from AMM state and does
 # not claim an observed order book or true L2 feed.
 RECONSTRUCTED_EXECUTABLE_SURFACE: Final[str] = "reconstructed_executable_surface"
@@ -136,7 +136,7 @@ def _coerce_ordering_key(value: object, name: str = "availability_key") -> PumpS
 
 @dataclass(frozen=True, slots=True)
 class PumpSwapStateProvenance:
-    """Pinned source metadata for one immutable post-state snapshot."""
+    """Pinned source metadata for one post-state snapshot."""
 
     ordering_key: PumpSwapOrderingKey | tuple[int, int, int] | tuple[int, int, int, str]
     schema_revision: str = SCHEMA_REVISION
@@ -275,7 +275,7 @@ class PumpSwapPoolState:
             key = _coerce_ordering_key(supplied_keys[0])
             if len(supplied_keys) == 2 and key != _coerce_ordering_key(supplied_keys[1]):
                 raise ValueError("availability_key and source_ordering_key disagree")
-            # Zero-valued direct fields are defaults, so an explicit key may
+            # Zero-valued direct fields are defaults, so a key may
             # populate them.  Non-default direct ordering must agree exactly.
             if direct_key != PumpSwapOrderingKey(0, 0, 0, "") and direct_key != key:
                 raise ValueError("state ordering fields disagree with availability_key")
@@ -868,7 +868,7 @@ def build_pumpswap_quote_surface(
         raise ValueError("at least one notional sequence is required")
     levels: list[PumpSwapQuoteLevel] = []
     # Stable side ordering is buy then sell for each size.  Each level is
-    # quoted against the same immutable pre-trade state.
+    # quoted against the same pre-trade state.
     for index in range(max(len(buys), len(sells))):
         if index < len(buys):
             levels.append(_buy_level(state, buys[index], as_of=as_of))
@@ -884,70 +884,25 @@ def build_pumpswap_quote_surface(
     )
 
 
-# Naming aliases make the adapter convenient without duplicating behavior.
-PumpSwapState = PumpSwapPoolState
-PumpSwapPoolStateProvenance = PumpSwapStateProvenance
-PumpSwapProvenance = PumpSwapStateProvenance
-PoolStateProvenance = PumpSwapStateProvenance
-PumpSwapAvailabilityKey = PumpSwapOrderingKey
-PumpSwapQuote = PumpSwapQuoteLevel
-PumpSwapExecutableQuote = PumpSwapQuoteLevel
-PumpSwapLevel = PumpSwapQuoteLevel
-PumpSwapSurface = PumpSwapQuoteSurface
-PumpSwapExecutableSurface = PumpSwapQuoteSurface
-QuoteLevel = PumpSwapQuoteLevel
-QuoteSurface = PumpSwapQuoteSurface
-QuoteSide = PumpSwapQuoteSide
-build_pumpswap_surface = build_pumpswap_quote_surface
-pumpswap_quote_surface = build_pumpswap_quote_surface
-reconstruct_pumpswap_surface = build_pumpswap_quote_surface
-build_executable_surface = build_pumpswap_quote_surface
-build_pumpswap_depth_surface = build_pumpswap_quote_surface
-quote_surface = build_pumpswap_quote_surface
-quote_pumpswap_buy = pumpswap_buy_level
-quote_pumpswap_sell = pumpswap_sell_level
-
-
 __all__ = [
     "AvailabilityKey",
     "LAYOUT_REVISION",
     "MATH_REVISION",
     "NOT_OBSERVED_ORDERBOOK",
     "NOT_TRUE_L2",
-    "PumpSwapAvailabilityKey",
-    "PumpSwapExecutableQuote",
-    "PumpSwapExecutableSurface",
     "PumpSwapFeeBreakdown",
-    "PumpSwapLevel",
     "PumpSwapOrderingKey",
     "PumpSwapPoolState",
-    "PumpSwapPoolStateProvenance",
-    "PumpSwapProvenance",
-    "PumpSwapQuote",
     "PumpSwapQuoteLevel",
     "PumpSwapQuoteSide",
     "PumpSwapQuoteSurface",
-    "PumpSwapState",
     "PumpSwapStateProvenance",
-    "PumpSwapSurface",
-    "PoolStateProvenance",
-    "QuoteLevel",
-    "QuoteSurface",
-    "QuoteSide",
     "RECONSTRUCTED_EXECUTABLE_SURFACE",
     "SCHEMA_REVISION",
     "SUPPORTED_FEE_SOURCE",
     "SUPPORTED_PATH",
     "SURFACE_LABELS",
     "build_pumpswap_quote_surface",
-    "build_pumpswap_surface",
-    "build_executable_surface",
-    "build_pumpswap_depth_surface",
     "pumpswap_buy_level",
-    "pumpswap_quote_surface",
     "pumpswap_sell_level",
-    "quote_surface",
-    "quote_pumpswap_buy",
-    "quote_pumpswap_sell",
-    "reconstruct_pumpswap_surface",
 ]

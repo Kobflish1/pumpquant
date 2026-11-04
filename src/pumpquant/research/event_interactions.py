@@ -1,6 +1,6 @@
 """A frozen, one-gate-at-a-time interaction registry for event research.
 
-This module is intentionally small and deliberately *not* a strategy runner.
+A small registry, not a strategy runner.
 The event labels and their delayed round-trip outcomes are produced by the
 existing event-screen pipeline.  Here we only declare the bounded signal ×
 gate hypotheses, fit their two scalar cut-points inside each training fold,
@@ -61,12 +61,6 @@ class EventInteractionSignalAxis:
             raise ValueError("interaction signal evidence metadata is required")
 
     @property
-    def axis(self) -> EventInteractionSignalAxis:
-        """Self alias for code that treats a signal as a nested candidate axis."""
-
-        return self
-
-    @property
     def quantile(self) -> float:
         """The sole registered signal quantile."""
 
@@ -100,10 +94,6 @@ class EventInteractionGateAxis:
             raise ValueError("interaction gate quantiles must be inside (0, 1)")
         if not self.primary_source.strip() or not self.rationale.strip():
             raise ValueError("interaction gate evidence metadata is required")
-
-    @property
-    def axis(self) -> EventInteractionGateAxis:
-        return self
 
     @property
     def thresholds(self) -> tuple[float, ...]:
@@ -238,20 +228,6 @@ DEFAULT_EVENT_INTERACTION_GATE_AXES: tuple[EventInteractionGateAxis, ...] = (
 )
 
 
-# Short aliases make the registry easy to discover while preserving the
-# explicit ``*_AXES`` names used by the event-research module.
-DEFAULT_EVENT_INTERACTION_SIGNALS = DEFAULT_EVENT_INTERACTION_SIGNAL_AXES
-DEFAULT_EVENT_INTERACTION_GATES = DEFAULT_EVENT_INTERACTION_GATE_AXES
-# The shorter constants are useful to callers that do not use the event-
-# research module's ``*_AXES`` naming.  They are aliases to the same immutable
-# tuples, not separately configurable registries.
-DEFAULT_INTERACTION_SIGNAL_AXES = DEFAULT_EVENT_INTERACTION_SIGNAL_AXES
-DEFAULT_INTERACTION_GATE_AXES = DEFAULT_EVENT_INTERACTION_GATE_AXES
-DEFAULT_INTERACTION_SIGNALS = DEFAULT_EVENT_INTERACTION_SIGNAL_AXES
-DEFAULT_INTERACTION_GATES = DEFAULT_EVENT_INTERACTION_GATE_AXES
-DEFAULT_EVENT_INTERACTION_AXES = DEFAULT_EVENT_INTERACTION_SIGNAL_AXES
-
-
 @dataclass(frozen=True, slots=True)
 class EventInteractionCandidate:
     """Stable signal × exactly-one-gate identity; thresholds are fold-specific."""
@@ -269,34 +245,6 @@ class EventInteractionCandidate:
             raise ValueError("candidate gate quantile is not registered")
         if self.holding_events < 1:
             raise ValueError("candidate holding horizon must be positive")
-
-    @property
-    def signal(self) -> EventInteractionSignalAxis:
-        """Alias matching the terminology used by the gated-screen API."""
-
-        return self.signal_axis
-
-    @property
-    def axis(self) -> EventInteractionSignalAxis:
-        """Alias matching :class:`EventResearchCandidate`."""
-
-        return self.signal_axis
-
-    @property
-    def gate(self) -> EventInteractionGateAxis:
-        return self.gate_axis
-
-    @property
-    def quantile(self) -> float:
-        """Signal quantile alias for code shared with event-research candidates."""
-
-        return self.signal_quantile
-
-    @property
-    def signal_threshold(self) -> float:
-        """The registered signal quantile (the fitted value is fold-specific)."""
-
-        return self.signal_quantile
 
     @property
     def gate_threshold(self) -> float:
@@ -342,19 +290,6 @@ class EventInteractionThreshold:
     @property
     def gate_value(self) -> float | None:
         return self.gate_threshold
-
-
-# Additional names are intentionally aliases, not duplicate classes.  They
-# let callers use either the descriptive interaction terminology or the
-# shorter registry terminology without changing identity/serialization.
-EventInteractionAxis = EventInteractionSignalAxis
-EventInteractionSignal = EventInteractionSignalAxis
-EventInteractionGate = EventInteractionGateAxis
-InteractionSignalAxis = EventInteractionSignalAxis
-InteractionGateAxis = EventInteractionGateAxis
-InteractionCandidate = EventInteractionCandidate
-InteractionThreshold = EventInteractionThreshold
-EventInteractionMetrics = EventCandidateMetrics
 
 
 def default_event_interaction_candidates(
@@ -701,48 +636,18 @@ def parse_event_interaction_aggregate_rows(
     return tuple(result)
 
 
-# Function aliases for clients that use the shorter interaction prefix.
-create_interaction_thresholds_sql = create_event_interaction_thresholds_sql
-interaction_aggregate_sql = event_interaction_aggregate_sql
-parse_interaction_threshold_rows = parse_event_interaction_threshold_rows
-parse_interaction_aggregate_rows = parse_event_interaction_aggregate_rows
-default_interaction_candidates = default_event_interaction_candidates
-interaction_signal_features = event_interaction_signal_features
-
-
 __all__ = [
-    "DEFAULT_EVENT_INTERACTION_GATES",
-    "DEFAULT_EVENT_INTERACTION_AXES",
     "DEFAULT_EVENT_INTERACTION_SIGNAL_AXES",
-    "DEFAULT_EVENT_INTERACTION_SIGNALS",
     "DEFAULT_EVENT_INTERACTION_GATE_AXES",
-    "DEFAULT_INTERACTION_GATE_AXES",
-    "DEFAULT_INTERACTION_GATES",
-    "DEFAULT_INTERACTION_SIGNAL_AXES",
-    "DEFAULT_INTERACTION_SIGNALS",
-    "EventInteractionAxis",
     "EventInteractionCandidate",
-    "EventInteractionGate",
     "EventInteractionGateAxis",
-    "EventInteractionSignal",
     "EventInteractionSignalAxis",
     "EventInteractionThreshold",
-    "EventInteractionMetrics",
     "INTERACTION_HOLDING_EVENTS",
-    "InteractionCandidate",
-    "InteractionGateAxis",
-    "InteractionSignalAxis",
-    "InteractionThreshold",
     "create_event_interaction_thresholds_sql",
-    "create_interaction_thresholds_sql",
     "default_event_interaction_candidates",
-    "default_interaction_candidates",
     "event_interaction_aggregate_sql",
     "event_interaction_signal_features",
-    "interaction_aggregate_sql",
-    "interaction_signal_features",
     "parse_event_interaction_aggregate_rows",
     "parse_event_interaction_threshold_rows",
-    "parse_interaction_aggregate_rows",
-    "parse_interaction_threshold_rows",
 ]

@@ -13,7 +13,7 @@ The simulator mirrors the material live state-machine semantics:
 * positions are observed on a 200ms clock;
 * take-profit is revalidated before every exit attempt;
 * entry and exit retry at 75ms, independently, up to eight attempts;
-* fee-gate skips and paid failed attempts are explicit outcomes.
+* fee-gate skips and paid failed attempts are outcomes.
 
 Latency/attempt templates are empirical inputs.  Keeping them outside the
 market path makes uncertainty from historical markets separable from the
@@ -182,7 +182,7 @@ def _state_at(path: ReplayPath, target_ms: int) -> ReplayState | None:
     if lower == 0:
         return None
     # All events from an available second arrive together.  bisect_right
-    # deliberately returns the final transaction state in that completed second.
+    # returns the final transaction state in that completed second.
     return path.states[lower - 1]
 
 

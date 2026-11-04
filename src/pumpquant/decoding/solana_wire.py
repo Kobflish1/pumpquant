@@ -1,7 +1,7 @@
 """Strict, dependency-free decoding of Solana transaction wire values.
 
 The block and transaction archives keep Solana transactions in the JSON-RPC
-``[base64, "base64"]`` representation.  This module intentionally decodes
+``[base64, "base64"]`` representation.  This module decodes
 only the parts that are needed to join execution metadata back to accounts:
 the first signature and the ordered static account keys in a legacy or v0
 message.  It does not attempt to interpret instructions or address-table
@@ -29,7 +29,7 @@ class SolanaWireError(ValueError):
 
 
 class MalformedTransactionError(SolanaWireError):
-    """A serialized transaction is malformed or has trailing bytes."""
+    """A serialised transaction is malformed or has trailing bytes."""
 
 
 class UnsupportedTransactionVersionError(SolanaWireError):
@@ -63,7 +63,7 @@ class TokenBalance(NamedTuple):
 
 
 class _Cursor:
-    """Bounds-checked reader for one immutable serialized transaction."""
+    """Bounds-checked reader for one serialised transaction."""
 
     __slots__ = ("payload", "offset")
 
@@ -302,7 +302,7 @@ def parse_serialized_transaction(value: str) -> tuple[str, tuple[str, ...]]:
 def parse_transaction_record(value: Mapping[str, object]) -> tuple[str, tuple[str, ...]]:
     """Decode the ``transaction: [base64, "base64"]`` RPC record field.
 
-    The wire parser itself deliberately accepts only the serialized base64
+    The wire parser itself accepts only the serialised base64
     string.  This small adapter keeps JSON-RPC shape validation at the edge for
     callers walking ``getBlock``/``getTransaction`` records.
     """
@@ -317,12 +317,6 @@ def parse_transaction_record(value: Mapping[str, object]) -> tuple[str, tuple[st
 
 
 # Names used by callers that describe the same wire operation more explicitly.
-parse_transaction = parse_serialized_transaction
-parse_transaction_base64 = parse_serialized_transaction
-parse_solana_transaction = parse_serialized_transaction
-parse_transaction_wire = parse_serialized_transaction
-decode_solana_transaction = parse_serialized_transaction
-parse_rpc_transaction = parse_transaction_record
 
 
 def _account_key_sequence(value: object, label: str) -> tuple[str, ...]:
@@ -394,7 +388,7 @@ def append_loaded_addresses_from_meta(
 
 
 class TokenBalanceIndex(Mapping[str, TokenBalance]):
-    """Immutable token metadata indexed by account pubkey.
+    """Token metadata indexed by account pubkey.
 
     ``pre`` and ``post`` preserve the source side of each RPC balance list;
     the mapping interface and ``by_pubkey`` expose their verified union.  The
@@ -556,13 +550,6 @@ def map_token_balances_from_meta(
     return map_token_balances(static_account_keys, meta)
 
 
-resolve_token_balances = map_token_balances
-resolve_token_balance_accounts = map_token_balances
-append_loaded_account_keys = append_loaded_addresses
-resolve_account_keys = append_loaded_addresses
-map_token_balances_by_account = map_token_balances
-
-
 __all__ = [
     "BASE58_ALPHABET",
     "MalformedTokenMetadataError",
@@ -571,21 +558,10 @@ __all__ = [
     "TokenBalance",
     "TokenBalanceIndex",
     "UnsupportedTransactionVersionError",
-    "append_loaded_account_keys",
     "append_loaded_addresses",
     "append_loaded_addresses_from_meta",
-    "decode_solana_transaction",
     "map_token_balances",
-    "map_token_balances_by_account",
     "map_token_balances_from_meta",
     "parse_serialized_transaction",
     "parse_transaction_record",
-    "parse_rpc_transaction",
-    "parse_solana_transaction",
-    "parse_transaction",
-    "parse_transaction_base64",
-    "parse_transaction_wire",
-    "resolve_account_keys",
-    "resolve_token_balance_accounts",
-    "resolve_token_balances",
 ]

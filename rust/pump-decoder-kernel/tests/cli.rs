@@ -34,7 +34,9 @@ fn jsonl_classifies_invalid_utf8_per_line() {
 fn jsonl_and_benchmark_are_rejected_together() {
     let output = run(&["--jsonl", "--benchmark"], b"");
     assert_eq!(output.status.code(), Some(2));
-    assert!(String::from_utf8(output.stderr)
-        .expect("stderr should be UTF-8")
-        .contains("mutually exclusive"));
+    assert!(
+        String::from_utf8(output.stderr)
+            .expect("stderr should be UTF-8")
+            .contains("mutually exclusive")
+    );
 }

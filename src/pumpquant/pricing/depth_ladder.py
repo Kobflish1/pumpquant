@@ -57,7 +57,7 @@ class ExecutableQuote:
 
 
 def buy_base_with_quote(state: AmmState, quote_in: float) -> ExecutableQuote:
-    """Generic constant-product exact-quote-in buy in normalized units."""
+    """Generic constant-product exact-quote-in buy in normalised units."""
     if quote_in <= 0.0:
         raise ValueError("quote_in must be positive")
     fee = quote_in * state.fee_bps / 10_000.0
@@ -83,7 +83,7 @@ def buy_base_with_quote(state: AmmState, quote_in: float) -> ExecutableQuote:
 
 
 def sell_base_for_quote(state: AmmState, base_in: float) -> ExecutableQuote:
-    """Generic constant-product exact-base-in sell in normalized units."""
+    """Generic constant-product exact-base-in sell in normalised units."""
     if base_in <= 0.0:
         raise ValueError("base_in must be positive")
     fee = base_in * state.fee_bps / 10_000.0

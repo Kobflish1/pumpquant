@@ -2,7 +2,7 @@
 
 The controller selects the cheapest observed bid arm whose conservative
 latency quantile meets a caller-supplied service-level target. It does not
-pretend that a single fee is optimal in every localized fee market.
+pretend that a single fee is optimal in every localised fee market.
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ class FeeDecision:
 
 def _quantile(values: list[float], quantile: float) -> float:
     ordered = sorted(values)
-    # "higher" is deliberately conservative and deterministic for small arms.
+    # "higher" is conservative and deterministic for small arms.
     return ordered[math.ceil(quantile * len(ordered)) - 1]
 
 
@@ -70,7 +70,7 @@ def select_priority_fee(
 
     ``current_localized_p75_micro_lamports`` must be computed from the exact
     writable accounts of the transaction. An arm is considered out of context
-    when current localized demand exceeds twice that arm's calibration median.
+    when current localised demand exceeds twice that arm's calibration median.
     Lower demand remains supported because the learned floor is retained.
     """
 
@@ -96,7 +96,7 @@ def select_priority_fee(
             and int(floor) >= 0
             and isinstance(localized, (int, float))
         ):
-            # Floors below the sampled localized fee did not bind and are the
+            # Floors below the sampled localised fee did not bind and are the
             # same empirical arm. This coalesces the preregistered 0 and 1,000
             # control floors without inventing a numerical clustering rule.
             effective_floor = 0 if int(floor) <= int(localized) else int(floor)

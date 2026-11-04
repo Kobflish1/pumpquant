@@ -6,7 +6,7 @@ into an unbounded allocation.  This module keeps the old API while adding
 re-iterable candidate streams, content addressed specifications, optional
 successive-halving/racing, and a durable trial ledger.
 
-The search remains deliberately conservative: all splits are whole-token,
+The search remains conservative: all splits are whole-token,
 chronological cohorts, a candidate is selected from training bars only, and
 the test bars are replayed exactly once for the selected specification.
 """
@@ -24,7 +24,7 @@ from contextlib import suppress
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, ClassVar, Protocol, TypeVar
+from typing import Any, ClassVar, TypeVar
 
 from pumpquant.core.schema import Bar, Side
 from pumpquant.execution.bar_replay import (
@@ -138,7 +138,7 @@ def _spec_payload(spec: MomentumSpec) -> dict[str, Any]:
     # ``asdict`` is stable for this frozen dataclass, and sorting the resulting
     # JSON keys makes hashes independent of Python dictionary insertion order.
     payload = asdict(spec)
-    # Python considers ``-0.0 == 0.0``; normalize signed zero so equal specs
+    # Python considers ``-0.0 == 0.0``; normalise signed zero so equal specs
     # cannot acquire distinct content hashes.
     float_fields = {
         "entry_momentum",
@@ -178,20 +178,7 @@ def mint_sequence_sha256(mints: Iterable[str]) -> str:
     return digest.hexdigest()
 
 
-# Short aliases are useful to callers that use a generic candidate protocol.
-candidate_sha256 = momentum_spec_sha256
-spec_sha256 = momentum_spec_sha256
-hash_momentum_spec = momentum_spec_sha256
-spec_hash = momentum_spec_sha256
-
-
 T = TypeVar("T")
-
-
-class CandidateStream(Protocol):
-    """Minimal re-iterable protocol accepted by :func:`walk_forward_search`."""
-
-    def __iter__(self) -> Iterator[MomentumSpec]: ...
 
 
 def _dedupe_values(values: Iterable[T]) -> tuple[T, ...]:
@@ -207,7 +194,7 @@ def _dedupe_values(values: Iterable[T]) -> tuple[T, ...]:
 class MomentumGridStream(Iterable[MomentumSpec]):
     """A lazy Cartesian product of momentum parameter axes.
 
-    Axes are the only materialized state.  A product of billions of points
+    Axes are the only materialised state.  A product of billions of points
     therefore remains cheap to construct and can be consumed in batches by a
     search caller.  Each axis is stably deduplicated at construction time.
     """
@@ -288,10 +275,10 @@ def momentum_grid(
     stop_losses: Sequence[float] = (0.1, 0.2),
     template: MomentumSpec | None = None,
 ) -> tuple[MomentumSpec, ...]:
-    """Create the original explicitly enumerable baseline grid.
+    """Create the original enumerable baseline grid.
 
     New code should prefer :func:`momentum_grid_stream`; this wrapper remains
-    for compatibility and is intentionally the only API that materializes the
+    for compatibility and is the only API that materialises the
     Cartesian product.
     """
     return tuple(
@@ -304,12 +291,6 @@ def momentum_grid(
             template=template,
         )
     )
-
-
-# Explicit lazy aliases for callers that prefer an iterator-oriented name.
-iter_momentum_grid = momentum_grid_stream
-lazy_momentum_grid = momentum_grid_stream
-lazy_momentum_grid_stream = momentum_grid_stream
 
 
 def _halton(index: int, base: int) -> float:
@@ -366,7 +347,7 @@ class MomentumLowDiscrepancyStream(Iterable[MomentumSpec]):
         emitted = 0
         attempt = 0
         # A duplicate can only arise from quantizing an integer lookback or
-        # from a deliberately degenerate range.  Stop rather than spin forever
+        # from a degenerate range.  Stop rather than spin forever
         # when a caller asks for more unique points than the space contains.
         max_attempts = max(self.count * 100 + 100, 100)
         primes = (2, 3, 5, 7, 11)
@@ -432,41 +413,6 @@ def momentum_low_discrepancy_stream(
     )
 
 
-# Naming variants make the generic idea discoverable without duplicating logic.
-seeded_low_discrepancy_momentum_stream = momentum_low_discrepancy_stream
-low_discrepancy_momentum_stream = momentum_low_discrepancy_stream
-halton_momentum_stream = momentum_low_discrepancy_stream
-
-
-def seeded_low_discrepancy_candidates(
-    count: int,
-    *,
-    seed: int = 0,
-    template: MomentumSpec | None = None,
-    bounds: Mapping[str, tuple[float, float] | tuple[int, int]] | None = None,
-) -> MomentumLowDiscrepancyStream:
-    """Generic convenience wrapper accepting parameter-name bounds."""
-    values: dict[str, Any] = {
-        "momentum_lookback_range": (1, 32),
-        "entry_momentum_range": (-0.1, 0.3),
-        "entry_imbalance_range": (-1.0, 1.0),
-        "take_profit_range": (0.01, 1.0),
-        "stop_loss_range": (0.01, 0.95),
-    }
-    if bounds:
-        for key, pair in bounds.items():
-            normalized = key if key.endswith("_range") else f"{key}_range"
-            if normalized not in values:
-                raise ValueError(f"unsupported MomentumSpec bound {key!r}")
-            values[normalized] = pair
-    return momentum_low_discrepancy_stream(
-        count,
-        seed=seed,
-        template=template,
-        **values,
-    )
-
-
 class ExperimentLedger:
     """Append-only fsync-safe JSONL ledger for every candidate/fold trial.
 
@@ -501,12 +447,6 @@ class ExperimentLedger:
             with suppress(OSError):
                 os.close(fd)
             raise
-
-    def append_trial(self, record: Mapping[str, Any] | None = None, **fields: Any) -> None:
-        """Append a trial payload (convenience alias for :meth:`append`)."""
-        payload: dict[str, Any] = {} if record is None else dict(record)
-        payload.update(fields)
-        self.append(payload)
 
     def read_records(self) -> tuple[dict[str, Any], ...]:
         """Read committed JSONL rows for deterministic search resumption."""
@@ -580,19 +520,6 @@ def _candidate_evaluation(
         eligible=backtest.position_outcomes >= minimum_positions,
     )
     return evaluation
-
-
-def _evaluate(
-    bars: list[Bar],
-    spec: MomentumSpec,
-    config: ExecutionConfig,
-    minimum_positions: int,
-) -> CandidateEvaluation:
-    return _candidate_evaluation(
-        run_backtest(bars, spec, config),
-        spec,
-        minimum_positions,
-    )
 
 
 def _evaluate_prepared(
@@ -866,7 +793,7 @@ def _append_trial(
     evaluation = None if state.evaluation is None else asdict(state.evaluation)
     resume_evaluation = None if state.evaluation is None else asdict(state.evaluation)
     if evaluation is not None:
-        # These sequence-level diagnostics are intentionally not treated as
+        # These sequence-level diagnostics are not treated as
         # portfolio evidence.  Keep the ledger aligned with the CLI's fixed
         # notional diagnostics while retaining all execution/trial fields.
         performance_payload = evaluation.get("performance")
@@ -898,7 +825,7 @@ def _append_trial(
             "resource_sizes": list(resource_sizes),
             "execution_config": asdict(config),
             "evaluation": evaluation,
-            # Keep the complete immutable training result for exact resume;
+            # Keep the complete training result for exact resume;
             # ``evaluation`` remains the fixed-notional reporting view.
             "resume_evaluation": _resume_json_safe(resume_evaluation),
             "test_backtest": None if test_backtest is None else asdict(test_backtest),
@@ -937,193 +864,144 @@ def _resume_index(
     return index
 
 
-def _run_fold(
-    bars_by_mint: Mapping[str, Sequence[Bar]],
-    fold: WalkForwardFold[TokenCohort],
-    candidates: Iterable[MomentumSpec],
-    config: ExecutionConfig,
-    *,
-    minimum_train_positions: int,
-    min_train_tokens: int,
-    embargo_ns: int,
-    candidate_batch_size: int,
-    survivor_count: int | None,
-    halving_rounds: int,
-    halving_eta: float,
-    candidate_count_hint: int | None,
-    ledger: ExperimentLedger | None,
-    experiment_id: str,
-    data_sha256: str | None,
-    first_fold: bool,
-    resume_index: Mapping[tuple[int, str], dict[str, Any]] | None,
-    defer_test_replay: bool,
-) -> tuple[FoldSearchResult, int, int, int, list[float], int]:
-    train_mints_ordered = tuple(cohort.mint for cohort in fold.train)
-    fold_identity = _fold_ledger_identity(fold)
-    train_mints = set(train_mints_ordered)
-    test_mints = {cohort.mint for cohort in fold.test}
-    train_cutoff = fold.test_start_ns - embargo_ns
-    train_bars_by_mint = {
-        mint: tuple(
-            bar
-            for bar in bars_by_mint.get(mint, ())
-            if (bar.end_time_ns if bar.available_at_ns is None else bar.available_at_ns)
-            < train_cutoff
+@dataclass(frozen=True, slots=True)
+class _SearchSettings:
+    """How every fold of one walk-forward run is searched."""
+
+    config: ExecutionConfig
+    minimum_train_positions: int
+    min_train_tokens: int
+    embargo_ns: int
+    candidate_batch_size: int
+    survivor_count: int | None
+    halving_rounds: int
+    halving_eta: float
+    candidate_count_hint: int | None
+    ledger: ExperimentLedger | None
+    experiment_id: str
+    data_sha256: str | None
+    resume_index: Mapping[tuple[int, str], dict[str, Any]] | None
+    defer_test_replay: bool
+
+
+@dataclass(slots=True)
+class _FoldRun:
+    """One fold's result, with the trial counts behind the multiplicity correction.
+
+    ``attempted`` includes racing re-evaluations; ``observed`` counts each candidate once.
+    """
+
+    result: FoldSearchResult | None = None
+    attempted: int = 0
+    failed: int = 0
+    pruned: int = 0
+    observed: int = 0
+    trial_sharpes: list[float] = field(default_factory=list)
+
+
+@dataclass(slots=True)
+class _Round:
+    number: int
+    bars: list[Bar]
+    final: bool
+    target: int | None
+    states: list[_TrialState] = field(default_factory=list)
+    pending: list[_TrialState] = field(default_factory=list)
+
+
+class _FoldSearch:
+    """Race the candidates on growing prefixes of one fold's training tokens, then test
+    the winner on the tokens that launched next."""
+
+    def __init__(
+        self,
+        bars_by_mint: Mapping[str, Sequence[Bar]],
+        fold: WalkForwardFold[TokenCohort],
+        settings: _SearchSettings,
+    ) -> None:
+        self.fold = fold
+        self.settings = settings
+        self.fold_identity = _fold_ledger_identity(fold)
+        self.train_mints = tuple(cohort.mint for cohort in fold.train)
+        self.train_cutoff = fold.test_start_ns - settings.embargo_ns
+        self.train_bars = {
+            mint: tuple(
+                bar
+                for bar in bars_by_mint.get(mint, ())
+                if (bar.end_time_ns if bar.available_at_ns is None else bar.available_at_ns)
+                < self.train_cutoff
+            )
+            for mint in self.train_mints
+        }
+        self.test_bars = [bar for cohort in fold.test for bar in bars_by_mint.get(cohort.mint, ())]
+        self.resource_sizes = _resource_sizes(
+            len(self.train_mints), settings.min_train_tokens, settings.halving_rounds
         )
-        for mint in train_mints_ordered
-    }
-    test_bars = [bar for cohort in fold.test for bar in bars_by_mint.get(cohort.mint, ())]
-    resource_sizes = _resource_sizes(len(train_mints_ordered), min_train_tokens, halving_rounds)
-    if not resource_sizes:
-        raise ValueError("training fold contains no cohorts")
+        if not self.resource_sizes:
+            raise ValueError("training fold contains no cohorts")
+        # With racing enabled, keep a bounded frontier even without a survivor
+        # count. The first round still streams; no candidate tuple is built.
+        self.race_cap = settings.survivor_count
+        if settings.halving_rounds > 1 and self.race_cap is None:
+            self.race_cap = settings.candidate_batch_size
+        self.run = _FoldRun()
 
-    if candidate_batch_size < 1:
-        raise ValueError("candidate_batch_size must be positive")
-    if survivor_count is not None and survivor_count < 1:
-        raise ValueError("survivor_count must be positive")
-    if halving_eta <= 1.0 or not math.isfinite(halving_eta):
-        raise ValueError("halving_eta must be finite and greater than one")
+    def search(self, candidates: Iterable[MomentumSpec]) -> _FoldRun:
+        active: list[_TrialState] = []
+        for number, resource_size in enumerate(self.resource_sizes, start=1):
+            source: Iterable[MomentumSpec | _TrialState]
+            source = _iter_unique(candidates) if number == 1 else active
+            active = self._race(self._round(number, resource_size, len(active)), source)
+            if not active:
+                break
+        self._finish(active)
+        return self.run
 
-    # With racing enabled, keep a bounded default even when the caller did not
-    # provide an explicit survivor count.  The first round remains streaming;
-    # no candidate tuple is constructed.
-    default_race_cap = survivor_count
-    if halving_rounds > 1 and default_race_cap is None:
-        default_race_cap = candidate_batch_size
-
-    active: list[_TrialState] = []
-    attempted = failed = pruned = 0
-    trial_sharpes: list[float] = []
-    observed_candidates = 0
-
-    for round_number, resource_size in enumerate(resource_sizes, start=1):
-        source: Iterable[MomentumSpec | _TrialState]
-        source = _iter_unique(candidates) if round_number == 1 else active
-        round_bars = [
-            bar for mint in train_mints_ordered[:resource_size] for bar in train_bars_by_mint[mint]
-        ]
-        final_round = round_number == len(resource_sizes)
-        # Compute the frontier before consuming the stream whenever possible.
-        # This is what keeps a capped final round from accumulating every
-        # evaluation just to sort it at the end.
-        if final_round:
-            target = survivor_count
+    def _round(self, number: int, resource_size: int, active_count: int) -> _Round:
+        final = number == len(self.resource_sizes)
+        # Fix the frontier before consuming the stream whenever possible, so a capped
+        # final round never accumulates every evaluation just to sort it at the end.
+        if final:
+            target = self.settings.survivor_count
         else:
-            total_hint = candidate_count_hint or len(active)
-            target = max(1, math.ceil(total_hint / halving_eta)) if total_hint else None
-            if default_race_cap is not None:
-                target = default_race_cap if target is None else min(target, default_race_cap)
-        round_states: list[_TrialState] = []
-        pending: list[_TrialState] = []
-
-        def append_failed(
-            state: _TrialState,
-            error: Exception,
-            *,
-            _round_number: int = round_number,
-        ) -> None:
-            nonlocal failed
-            state.error = f"{type(error).__name__}: {error}"
-            failed += 1
-            # A failed trial has no finite Sharpe.  Record a neutral zero
-            # observation so DSR's candidate denominator still covers it.
-            trial_sharpes.append(0.0)
-            _append_trial(
-                ledger,
-                experiment_id=experiment_id,
-                data_sha256=data_sha256,
-                config=config,
-                fold=fold,
-                fold_identity=fold_identity,
-                train_cutoff_ns=train_cutoff,
-                state=state,
-                status="failed",
-                selected=False,
-                final_round=_round_number,
-                resource_sizes=resource_sizes,
+            total_hint = self.settings.candidate_count_hint or active_count
+            target = (
+                max(1, math.ceil(total_hint / self.settings.halving_eta)) if total_hint else None
             )
+            if self.race_cap is not None:
+                target = self.race_cap if target is None else min(target, self.race_cap)
+        bars = [bar for mint in self.train_mints[:resource_size] for bar in self.train_bars[mint]]
+        return _Round(number, bars, final, target)
 
-        def append_evaluated(
-            state: _TrialState,
-            evaluation: CandidateEvaluation,
-            *,
-            _round_number: int = round_number,
-            _final_round: bool = final_round,
-            _target: int | None = target,
-        ) -> None:
-            nonlocal pruned, round_states
-            state.attempted_rounds.append(_round_number)
-            state.evaluation = evaluation
-            if _final_round:
-                trial_sharpes.append(evaluation.performance.sharpe)
-            round_states.append(state)
-            if _target is None or len(round_states) <= _target:
-                return
-            ranked = _ranked(round_states, final=_final_round)
-            round_states = ranked[:_target]
-            dropped_state = ranked[_target]
-            pruned += 1
-            _append_trial(
-                ledger,
-                experiment_id=experiment_id,
-                data_sha256=data_sha256,
-                config=config,
-                fold=fold,
-                fold_identity=fold_identity,
-                train_cutoff_ns=train_cutoff,
-                state=dropped_state,
-                status="pruned",
-                selected=False,
-                final_round=_round_number,
-                resource_sizes=resource_sizes,
-            )
-            # One terminal row and one DSR observation per candidate/fold.
-            if not _final_round and dropped_state.evaluation is not None:
-                trial_sharpes.append(dropped_state.evaluation.performance.sharpe)
+    def _record(
+        self,
+        state: _TrialState,
+        status: str,
+        round_number: int,
+        *,
+        selected: bool = False,
+        test_backtest: BacktestResult | None = None,
+    ) -> None:
+        _append_trial(
+            self.settings.ledger,
+            experiment_id=self.settings.experiment_id,
+            data_sha256=self.settings.data_sha256,
+            config=self.settings.config,
+            fold=self.fold,
+            fold_identity=self.fold_identity,
+            train_cutoff_ns=self.train_cutoff,
+            state=state,
+            status=status,
+            selected=selected,
+            final_round=round_number,
+            resource_sizes=self.resource_sizes,
+            test_backtest=test_backtest,
+        )
 
-        def flush_pending(
-            *,
-            _pending: list[_TrialState] = pending,
-            _round_bars: list[Bar] = round_bars,
-        ) -> None:
-            if not _pending:
-                return
-            grouped: dict[tuple[int, int], list[_TrialState]] = {}
-            for state in _pending:
-                key = (state.spec.momentum_lookback, state.spec.volume_lookback)
-                grouped.setdefault(key, []).append(state)
-            outcomes: dict[str, CandidateEvaluation | Exception] = {}
-            for (momentum_lookback, volume_lookback), states in grouped.items():
-                try:
-                    prepared = prepare_backtest_bars(
-                        _round_bars,
-                        momentum_lookback=momentum_lookback,
-                        volume_lookback=volume_lookback,
-                    )
-                except Exception as error:
-                    for state in states:
-                        outcomes[state.digest] = error
-                    continue
-                for state in states:
-                    try:
-                        outcomes[state.digest] = _evaluate_prepared(
-                            prepared,
-                            state.spec,
-                            config,
-                            minimum_train_positions,
-                        )
-                    except Exception as error:
-                        outcomes[state.digest] = error
-            # Feature work is grouped, but ranking and ledger order remain the
-            # original candidate-stream order.
-            for state in _pending:
-                outcome = outcomes[state.digest]
-                if isinstance(outcome, Exception):
-                    append_failed(state, outcome)
-                else:
-                    append_evaluated(state, outcome)
-            _pending.clear()
-
+    def _race(
+        self, round_: _Round, source: Iterable[MomentumSpec | _TrialState]
+    ) -> list[_TrialState]:
+        """Evaluate one round in batches and return the states that survive it."""
         for item in source:
             resumed_state = item if isinstance(item, _TrialState) else None
             if resumed_state is not None:
@@ -1134,148 +1012,191 @@ def _run_fold(
                 spec = item
             digest = momentum_spec_sha256(spec)
             if resumed_state is not None and resumed_state.resumed:
-                flush_pending()
-                # A committed terminal row already contains the full training
-                # result.  Carry the frontier forward without replaying it.
-                round_states.append(resumed_state)
-                if target is not None and len(round_states) > target:
-                    ranked = _ranked(round_states, final=final_round)
-                    round_states = ranked[:target]
-                    if ranked[target] is not resumed_state:
-                        pruned += 1
+                self._flush(round_)
+                self._carry_forward(round_, resumed_state)
                 continue
-            if round_number == 1:
+            if round_.number == 1:
                 state = _TrialState(spec=spec, digest=digest)
-                observed_candidates += 1
-                attempted += 1
+                self.run.observed += 1
             else:
-                # ``active`` is already deduplicated and bounded from the prior
-                # round.  Looking up by hash preserves its deterministic order.
+                # ``active`` is already deduplicated and bounded by the prior round.
                 state = (
                     resumed_state
                     if resumed_state is not None
                     else _TrialState(spec=spec, digest=digest)
                 )
-                attempted += 1
-            record = (
-                resume_index.get((fold.number, digest))
-                if resume_index is not None and round_number == 1
-                else None
-            )
-            if record is not None and record.get("resource_sizes") == list(resource_sizes):
-                flush_pending()
-                attempted_rounds = record.get("attempted_rounds")
-                committed_attempts = (
-                    len(attempted_rounds)
-                    if isinstance(attempted_rounds, list) and attempted_rounds
-                    else 1
+            self.run.attempted += 1
+            if round_.number == 1 and self._resume(round_, state):
+                continue
+            round_.pending.append(state)
+            if len(round_.pending) >= self.settings.candidate_batch_size:
+                self._flush(round_)
+        self._flush(round_)
+        return round_.states
+
+    def _carry_forward(self, round_: _Round, state: _TrialState) -> None:
+        # A committed terminal row already holds the full training result.
+        round_.states.append(state)
+        if round_.target is not None and len(round_.states) > round_.target:
+            ranked = _ranked(round_.states, final=round_.final)
+            round_.states = ranked[: round_.target]
+            if ranked[round_.target] is not state:
+                self.run.pruned += 1
+
+    def _resume(self, round_: _Round, state: _TrialState) -> bool:
+        """Reuse a committed ledger row for this candidate; True when nothing is left to run."""
+        index = self.settings.resume_index
+        record = index.get((self.fold.number, state.digest)) if index is not None else None
+        if record is None or record.get("resource_sizes") != list(self.resource_sizes):
+            return False
+        self._flush(round_)
+        attempted_rounds = record.get("attempted_rounds")
+        committed_attempts = (
+            len(attempted_rounds) if isinstance(attempted_rounds, list) and attempted_rounds else 1
+        )
+        # The first-round candidate was counted already; add only prior replays.
+        self.run.attempted += max(0, committed_attempts - 1)
+        status = record.get("status")
+        if status == "failed":
+            self.run.failed += 1
+            self.run.trial_sharpes.append(0.0)
+            return True
+        evaluation = _evaluation_from_record(record, state.spec)
+        if status == "pruned":
+            self.run.pruned += 1
+            if evaluation is not None:
+                self.run.trial_sharpes.append(evaluation.performance.sharpe)
+            return True
+        if evaluation is None:
+            return False
+        state.evaluation = evaluation
+        state.resumed = True
+        cached_test = record.get("test_backtest")
+        if isinstance(cached_test, Mapping):
+            try:
+                state.test_backtest = _backtest_from_record(cached_test)
+            except (KeyError, TypeError, ValueError):
+                state.test_backtest = None
+        round_.states.append(state)
+        self.run.trial_sharpes.append(evaluation.performance.sharpe)
+        return True
+
+    def _flush(self, round_: _Round) -> None:
+        """Evaluate the pending batch, sharing feature work between equal lookbacks."""
+        if not round_.pending:
+            return
+        grouped: dict[tuple[int, int], list[_TrialState]] = {}
+        for state in round_.pending:
+            key = (state.spec.momentum_lookback, state.spec.volume_lookback)
+            grouped.setdefault(key, []).append(state)
+        outcomes: dict[str, CandidateEvaluation | Exception] = {}
+        for (momentum_lookback, volume_lookback), states in grouped.items():
+            try:
+                prepared = prepare_backtest_bars(
+                    round_.bars,
+                    momentum_lookback=momentum_lookback,
+                    volume_lookback=volume_lookback,
                 )
-                # The first-round candidate was already counted above; only
-                # add prior resource replays recovered from the ledger.
-                attempted += max(0, committed_attempts - 1)
-                status = record.get("status")
-                if status == "failed":
-                    failed += 1
-                    trial_sharpes.append(0.0)
-                    continue
-                if status == "pruned":
-                    pruned += 1
-                    resumed_evaluation = _evaluation_from_record(record, spec)
-                    if resumed_evaluation is not None:
-                        trial_sharpes.append(resumed_evaluation.performance.sharpe)
-                    continue
-                resumed_evaluation = _evaluation_from_record(record, spec)
-                if resumed_evaluation is not None:
-                    state.evaluation = resumed_evaluation
-                    state.resumed = True
-                    cached_test = record.get("test_backtest")
-                    if isinstance(cached_test, Mapping):
-                        try:
-                            state.test_backtest = _backtest_from_record(cached_test)
-                        except (KeyError, TypeError, ValueError):
-                            state.test_backtest = None
-                    round_states.append(state)
-                    trial_sharpes.append(resumed_evaluation.performance.sharpe)
-                    continue
-            pending.append(state)
-            if len(pending) >= candidate_batch_size:
-                flush_pending()
-        flush_pending()
-        active = round_states
+            except Exception as error:
+                for state in states:
+                    outcomes[state.digest] = error
+                continue
+            for state in states:
+                try:
+                    outcomes[state.digest] = _evaluate_prepared(
+                        prepared,
+                        state.spec,
+                        self.settings.config,
+                        self.settings.minimum_train_positions,
+                    )
+                except Exception as error:
+                    outcomes[state.digest] = error
+        # Ranking and ledger order stay in the candidate stream's order.
+        for state in round_.pending:
+            outcome = outcomes[state.digest]
+            if isinstance(outcome, Exception):
+                self._failed(round_, state, outcome)
+            else:
+                self._evaluated(round_, state, outcome)
+        round_.pending.clear()
 
-        if not active:
-            break
+    def _failed(self, round_: _Round, state: _TrialState, error: Exception) -> None:
+        state.error = f"{type(error).__name__}: {error}"
+        self.run.failed += 1
+        # A failed trial has no finite Sharpe; a neutral zero keeps it in DSR's denominator.
+        self.run.trial_sharpes.append(0.0)
+        self._record(state, "failed", round_.number)
 
-    evaluations = [state.evaluation for state in active if state.evaluation is not None]
-    # If a final cap is not used, ``active`` preserves candidate stream order;
-    # otherwise ranking order gives deterministic bounded output.
-    selected = max(evaluations, key=_deterministic_selection_key) if evaluations else None
-    selected_result = selected if selected is not None and selected.eligible else None
+    def _evaluated(
+        self, round_: _Round, state: _TrialState, evaluation: CandidateEvaluation
+    ) -> None:
+        state.attempted_rounds.append(round_.number)
+        state.evaluation = evaluation
+        if round_.final:
+            self.run.trial_sharpes.append(evaluation.performance.sharpe)
+        round_.states.append(state)
+        if round_.target is None or len(round_.states) <= round_.target:
+            return
+        ranked = _ranked(round_.states, final=round_.final)
+        round_.states = ranked[: round_.target]
+        dropped = ranked[round_.target]
+        self.run.pruned += 1
+        self._record(dropped, "pruned", round_.number)
+        # One terminal row and one DSR observation per candidate and fold.
+        if not round_.final and dropped.evaluation is not None:
+            self.run.trial_sharpes.append(dropped.evaluation.performance.sharpe)
 
-    if selected_result is None or defer_test_replay:
-        test_backtest = None
-        test_stats = performance([])
-    else:
-        selected_state = next(
-            state
-            for state in active
-            if state.evaluation is not None and state.spec == selected_result.spec
+    def _finish(self, active: list[_TrialState]) -> None:
+        """Select the best survivor, replay it on the test tokens and log the survivors."""
+        evaluations = [state.evaluation for state in active if state.evaluation is not None]
+        # Without a final cap ``active`` keeps stream order; otherwise ranking order.
+        selected = max(evaluations, key=_deterministic_selection_key) if evaluations else None
+        selected_result = selected if selected is not None and selected.eligible else None
+
+        if selected_result is None or self.settings.defer_test_replay:
+            test_backtest = None
+            test_stats = performance([])
+        else:
+            selected_state = next(
+                state
+                for state in active
+                if state.evaluation is not None and state.spec == selected_result.spec
+            )
+            test_backtest = selected_state.test_backtest
+            if test_backtest is None:
+                test_backtest = run_backtest(
+                    self.test_bars, selected_result.spec, self.settings.config
+                )
+            test_stats = performance(test_backtest.returns)
+
+        # Survivors are logged only after selection, so the selected bit never depends
+        # on test observations. The selected test replay is cached for exact resume.
+        for state in active:
+            if state.evaluation is None or state.resumed:
+                continue
+            chosen = selected_result is not None and state.spec == selected_result.spec
+            self._record(
+                state,
+                "completed",
+                len(self.resource_sizes),
+                selected=chosen,
+                test_backtest=test_backtest if chosen else None,
+            )
+
+        self.run.result = FoldSearchResult(
+            number=self.fold.number,
+            train_mints=tuple(sorted(self.train_mints)),
+            test_mints=tuple(sorted(cohort.mint for cohort in self.fold.test)),
+            test_start_ns=self.fold.test_start_ns,
+            train_cutoff_ns=self.train_cutoff,
+            candidate_evaluations=tuple(evaluations),
+            selected=selected_result,
+            test_backtest=test_backtest,
+            test_outcome_diagnostics=test_stats,
+            attempted_candidates=self.run.attempted,
+            failed_candidates=self.run.failed,
+            pruned_candidates=self.run.pruned,
         )
-        test_backtest = selected_state.test_backtest
-        if test_backtest is None:
-            test_backtest = run_backtest(test_bars, selected_result.spec, config)
-        test_stats = performance(test_backtest.returns)
-
-    # Successful survivors are emitted only after selection, so the selected
-    # bit is accurate without ever consulting fold-test observations.  The
-    # selected test replay is cached in its row for exact resume.
-    for state in active:
-        if state.evaluation is None or state.resumed:
-            continue
-        _append_trial(
-            ledger,
-            experiment_id=experiment_id,
-            data_sha256=data_sha256,
-            config=config,
-            fold=fold,
-            fold_identity=fold_identity,
-            train_cutoff_ns=train_cutoff,
-            state=state,
-            status="completed",
-            selected=selected_result is not None and state.spec == selected_result.spec,
-            final_round=len(resource_sizes),
-            resource_sizes=resource_sizes,
-            test_backtest=(
-                test_backtest
-                if selected_result is not None and state.spec == selected_result.spec
-                else None
-            ),
-        )
-
-    result = FoldSearchResult(
-        number=fold.number,
-        train_mints=tuple(sorted(train_mints)),
-        test_mints=tuple(sorted(test_mints)),
-        test_start_ns=fold.test_start_ns,
-        train_cutoff_ns=train_cutoff,
-        candidate_evaluations=tuple(
-            evaluation for evaluation in evaluations if evaluation is not None
-        ),
-        selected=selected_result,
-        test_backtest=test_backtest,
-        test_outcome_diagnostics=test_stats,
-        attempted_candidates=attempted,
-        failed_candidates=failed,
-        pruned_candidates=pruned,
-    )
-    return (
-        result,
-        attempted,
-        failed,
-        pruned,
-        trial_sharpes,
-        observed_candidates,
-    )
 
 
 def walk_forward_search(
@@ -1312,7 +1233,7 @@ def walk_forward_search(
 
     Candidate iterables must be re-iterable when more than one fold or racing
     round is requested.  ``MomentumGridStream`` and
-    ``MomentumLowDiscrepancyStream`` satisfy this without materializing the
+    ``MomentumLowDiscrepancyStream`` satisfy this without materialising the
     Cartesian product.  A one-shot iterator is accepted for a single fold.
     """
     materialized = bars if isinstance(bars, (list, tuple)) else list(bars)
@@ -1322,6 +1243,8 @@ def walk_forward_search(
         raise ValueError("minimum_train_positions must be positive")
     if candidate_batch_size < 1:
         raise ValueError("candidate_batch_size must be positive")
+    if survivor_count is not None and survivor_count < 1:
+        raise ValueError("survivor_count must be positive")
     if halving_rounds < 1:
         raise ValueError("halving_rounds must be positive")
     if halving_eta <= 1.0 or not math.isfinite(halving_eta):
@@ -1367,6 +1290,22 @@ def walk_forward_search(
         else None
     )
 
+    settings = _SearchSettings(
+        config=config,
+        minimum_train_positions=minimum_train_positions,
+        min_train_tokens=min_train_tokens,
+        embargo_ns=embargo_ns,
+        candidate_batch_size=candidate_batch_size,
+        survivor_count=survivor_count,
+        halving_rounds=halving_rounds,
+        halving_eta=halving_eta,
+        candidate_count_hint=candidate_count_hint,
+        ledger=ledger_sink,
+        experiment_id=experiment_id,
+        data_sha256=data_sha256,
+        resume_index=resume_records,
+        defer_test_replay=defer_test_replay,
+    )
     fold_results: list[FoldSearchResult] = []
     trial_sharpes: list[float] = []
     candidate_count: int | None = None
@@ -1374,40 +1313,22 @@ def walk_forward_search(
     for fold_number, fold in enumerate(folds):
         source: Iterable[MomentumSpec]
         source = first_iterator if fold_number == 0 and not reiterable else candidates
-        result, attempted, failed, pruned, sharpes, observed = _run_fold(
-            indexed_bars,
-            fold,
-            source,
-            config,
-            minimum_train_positions=minimum_train_positions,
-            min_train_tokens=min_train_tokens,
-            embargo_ns=embargo_ns,
-            candidate_batch_size=candidate_batch_size,
-            survivor_count=survivor_count,
-            halving_rounds=halving_rounds,
-            halving_eta=halving_eta,
-            candidate_count_hint=candidate_count_hint,
-            ledger=ledger_sink,
-            experiment_id=experiment_id,
-            data_sha256=data_sha256,
-            first_fold=fold_number == 0,
-            resume_index=resume_records,
-            defer_test_replay=defer_test_replay,
-        )
-        if observed == 0:
+        run = _FoldSearch(indexed_bars, fold, settings).search(source)
+        assert run.result is not None
+        if run.observed == 0:
             raise ValueError("at least one candidate is required")
         if candidate_count is None:
-            candidate_count = observed
-        elif observed != candidate_count:
+            candidate_count = run.observed
+        elif run.observed != candidate_count:
             raise ValueError("candidate stream changed between folds")
-        fold_results.append(result)
+        fold_results.append(run.result)
         # ``attempted`` includes racing re-evaluations; trial_count is the
         # multiplicity denominator of terminal candidate/fold trials.
-        evaluation_count += attempted
-        trial_count += observed
-        failed_count += failed
-        pruned_count += pruned
-        trial_sharpes.extend(sharpes)
+        evaluation_count += run.attempted
+        trial_count += run.observed
+        failed_count += run.failed
+        pruned_count += run.pruned
+        trial_sharpes.extend(run.trial_sharpes)
 
     oos_returns: list[float] = []
     for result in fold_results:

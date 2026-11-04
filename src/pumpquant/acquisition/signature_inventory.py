@@ -13,7 +13,7 @@ entire day (or all days) into memory:
   bucket at a time, and externally merged in signature order; and
 * the Parquet file and its canonical JSON manifest are published atomically.
 
-``pyarrow`` is optional, just as it is for :mod:`pumpquant.raw_instructions`.
+``pyarrow`` is optional, just as it is for :mod:`pumpquant.decoding.raw_instructions`.
 Importing this module does not require the archive extra; attempting to build
 an inventory without it raises an actionable ``RuntimeError``.
 """
@@ -68,7 +68,7 @@ _SCAN_COLUMNS = (
     "program_id",
 )
 
-# The output schema is intentionally explicit.  Explicit Arrow types keep the
+# The output schema is explicit.  Arrow types keep the
 # inventory stable when the input archive contains only null provenance values.
 INVENTORY_COLUMNS: tuple[str, ...] = (
     "signature",
@@ -110,19 +110,13 @@ class SignatureInventorySource:
         if self.row_count < 0:
             raise ValueError("source row_count cannot be negative")
 
-    @property
-    def sha256(self) -> str:
-        """Short alias used by callers that call the manifest hash ``sha256``."""
-
-        return self.manifest_sha256
-
 
 @dataclass(frozen=True, slots=True)
 class SignatureInventoryManifest:
     """Canonical metadata emitted beside a signature inventory.
 
     ``manifest_sha256`` is calculated over the canonical JSON bytes.  It is
-    deliberately omitted from those bytes, matching the existing archive
+    omitted from those bytes, matching the existing archive
     manifest convention and avoiding a self-referential digest.
     """
 
@@ -209,18 +203,8 @@ class SignatureInventoryManifest:
         return self.inventory_byte_count
 
     @property
-    def sha256(self) -> str:
-        return self.inventory_sha256
-
-    @property
     def sources_sha256(self) -> tuple[str, ...]:
         return tuple(source.manifest_sha256 for source in self.sources)
-
-
-# Concise aliases make the result discoverable without coupling callers to a
-# particular noun choice.
-SignatureInventoryResult = SignatureInventoryManifest
-InventoryManifest = SignatureInventoryManifest
 
 
 @dataclass(frozen=True, slots=True)
@@ -359,7 +343,7 @@ def _resolve_sources(
         seen_hashes.add(manifest.manifest_sha256)
         reader = RawInstructionArchiveReader(root, manifest, batch_size=_DEFAULT_BATCH_SIZE)
         # This hashes every listed shard and validates every Arrow schema and
-        # row count without yielding a record.  It is intentionally completed
+        # row count without yielding a record.  It is completed
         # for every source before any source is scanned.
         reader._preflight()
         resolved.append(
@@ -669,7 +653,7 @@ def _merge_runs(
             if buffer:
                 writer.write_table(pa.Table.from_pylist(buffer, schema=schema))
             elif row_count == 0:
-                # Ensure an empty inventory still has a valid, explicit schema.
+                # Ensure an empty inventory still has a valid, schema.
                 writer.write_table(pa.Table.from_pylist([], schema=schema))
         finally:
             writer.close()
@@ -725,7 +709,7 @@ def _manifest_payload(manifest: SignatureInventoryManifest) -> dict[str, object]
 
 
 def manifest_bytes(manifest: SignatureInventoryManifest) -> bytes:
-    """Serialize an inventory manifest in canonical UTF-8 JSON form."""
+    """Serialise an inventory manifest in canonical UTF-8 JSON form."""
 
     return (
         json.dumps(_manifest_payload(manifest), sort_keys=True, separators=(",", ":")) + "\n"
@@ -1154,23 +1138,12 @@ def build_signature_inventory(
         raise
 
 
-# Friendly aliases retained for callers that use a verb or the longer noun.
-build_transaction_signature_inventory = build_signature_inventory
-create_signature_inventory = build_signature_inventory
-generate_signature_inventory = build_signature_inventory
-
-
 __all__ = [
     "INVENTORY_COLUMNS",
-    "InventoryManifest",
     "SignatureInventoryError",
     "SignatureInventoryManifest",
-    "SignatureInventoryResult",
     "SignatureInventorySource",
     "build_signature_inventory",
-    "build_transaction_signature_inventory",
-    "create_signature_inventory",
-    "generate_signature_inventory",
     "inventory_schema_sha256",
     "is_valid_signature",
     "load_signature_inventory_manifest",

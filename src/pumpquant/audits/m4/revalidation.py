@@ -79,7 +79,7 @@ def _summary(values: list[float]) -> dict[str, float | int | None]:
 def summarize_end_to_end_latencies(
     rows: Iterable[dict[str, Any]],
 ) -> dict[str, object]:
-    """Summarize the latency scopes consumed by a causal outcome replay."""
+    """Summarise the latency scopes consumed by a causal outcome replay."""
 
     materialized = list(rows)
     samples = extract_end_to_end_latency_samples(materialized)

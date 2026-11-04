@@ -1,7 +1,7 @@
 """Bridge the exact survivor replay into the capacity-wallet contract.
 
-The capacity ladder deliberately owns the wallet and attribution *shape*, but
-it must not invent execution fills.  This module is the small adapter at that
+The capacity ladder owns the wallet and attribution *shape*, but
+it must not invent execution fills.  This is the small adapter at that
 boundary: each invocation of the returned factory starts a new exact replay at
 the requested USD seed, converts only the exact fills into
 ``capacity_gate.WalletTrade`` values, and returns a
@@ -90,7 +90,7 @@ def _require_integer(value: object, label: str, *, minimum: int = 0) -> int:
 def _validate_signal(signal: PositionSignal, index: int) -> None:
     """Validate manually-created ``PositionSignal`` instances as well as rows.
 
-    ``PositionSignal`` intentionally has no ``__post_init__`` so the exact
+    ``PositionSignal`` has no ``__post_init__`` so the exact
     runner can construct it directly.  The bridge is a promotion boundary and
     therefore checks the fields that are otherwise only validated by
     ``PositionSignal.from_mapping``.
@@ -605,20 +605,10 @@ def build_exact_capacity_replay_factory(
     return factory
 
 
-# Discoverable aliases used by runners that call this boundary a maker or an
-# adapter.  They intentionally reference one implementation.
-make_exact_capacity_replay_factory = build_exact_capacity_replay_factory
-build_capacity_replay_factory = build_exact_capacity_replay_factory
-exact_capacity_replay_factory = build_exact_capacity_replay_factory
-
-
 __all__ = [
     "FIXED_COST_PER_LEG_ATOMIC",
     "FOUR_DAY_WINDOW_NS",
     "REGISTERED_FAMILIES",
     "ReplayFactory",
-    "build_capacity_replay_factory",
     "build_exact_capacity_replay_factory",
-    "exact_capacity_replay_factory",
-    "make_exact_capacity_replay_factory",
 ]

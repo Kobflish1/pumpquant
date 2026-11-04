@@ -3,7 +3,7 @@
 Pump bonding curves and PumpSwap are automated market makers, not central limit
 order books.  The fill functions therefore walk the constant-product reserve
 curve directly.  Historical reserves remain exogenous after our hypothetical
-fill, so the simulator deliberately enforces small participation limits; large
+fill, so the simulator enforces small participation limits; large
 counterfactual orders require a full market-response model and are rejected.
 """
 
@@ -355,7 +355,7 @@ def constant_product_buy(bar: Bar, config: ExecutionConfig) -> Fill | None:
         venue_fee = quote_in - net_quote
         model = "bonding_curve_normalized_pump_fee_order_v2"
     else:
-        # PumpSwap replay is still a normalized constant-product approximation
+        # PumpSwap replay is still a normalised constant-product approximation
         # until its versioned atomic fee adapter is wired in.
         venue_fee = quote_in * fee_rate
         net_quote = quote_in - venue_fee

@@ -138,7 +138,7 @@ def _bar_from_accumulator(
     availability_floor_ns: int,
     unique_traders: int | None = None,
 ) -> Bar:
-    """Finalize one streaming accumulator using ``build_bars`` semantics."""
+    """Finalise one streaming accumulator using ``build_bars`` semantics."""
 
     end_time_ns = accumulator.start_time_ns + interval_ns
     available_at_ns = max(
@@ -261,7 +261,7 @@ def _accumulator_from_row(row: tuple[Any, ...]) -> _BarAccumulator:
     accumulator.sell_quote_volume = _FsumAccumulator()
     accumulator.sell_quote_volume._partials = _decode_fsum_partials(sell_partials)
     accumulator.trade_count = int(trade_count)
-    # Distinct traders are kept in SQLite.  The set is intentionally empty so
+    # Distinct traders are kept in SQLite.  The set is empty so
     # rehydrating a row never scales Python memory with bucket cardinality.
     accumulator.traders = set()
     accumulator.virtual_base_reserve = float(virtual_base_reserve)
@@ -631,16 +631,6 @@ def iter_bars_chain_ordered(
     return _iter()
 
 
-def build_bars_chain_ordered(
-    events: Iterable[SwapEvent],
-    interval_ns: int,
-    launch_times: Mapping[str, int] | None = None,
-) -> list[Bar]:
-    """Materialize :func:`iter_bars_chain_ordered` for batch callers."""
-
-    return list(iter_bars_chain_ordered(events, interval_ns, launch_times))
-
-
 def _zscore(values: list[float]) -> float:
     mean = math.fsum(values) / len(values)
     variance = math.fsum((value - mean) ** 2 for value in values) / len(values)
@@ -655,7 +645,7 @@ def _price_impact_1_quote_bps(
     real_base_reserve: float | None,
     fee_bps: float,
 ) -> float | None:
-    """Impact of one normalized quote unit; ``None`` when inventory cannot fill."""
+    """Impact of one normalised quote unit; ``None`` when inventory cannot fill."""
 
     quote_in = 1.0
     net_quote = quote_in * (1.0 - fee_bps / 10_000.0)
@@ -676,7 +666,7 @@ def causal_features(
     """Build per-market features without consulting a later chain bar.
 
     Momentum is the reserve-mark return over ``momentum_lookback`` bars.
-    Realized volatility is the root-mean-square of the same window's one-bar
+    Realised volatility is the root-mean-square of the same window's one-bar
     log returns.  Volume z-score uses a trailing window that includes the
     current, already-closed bar.  Warm-up values are ``None``.
 

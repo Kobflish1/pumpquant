@@ -1,4 +1,4 @@
-"""Checkpoint-specific information canonicalization for PumpAPI features."""
+"""Checkpoint-specific information canonicalisation for PumpAPI features."""
 
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ def select_information_distinct_features(
     limit: int,
     maximum_per_group: int = 4,
 ) -> tuple[list[str], dict[str, object]]:
-    """Select ranked features without constant or duplicate threshold behavior."""
+    """Select ranked features without constant or duplicate threshold behaviour."""
 
     if limit < 1 or maximum_per_group < 1:
         raise ValueError("limits must be positive")

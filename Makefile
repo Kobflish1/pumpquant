@@ -2,11 +2,13 @@
 PYTHON ?= python3
 CARGO_DECODER = rust/pump-decoder-kernel/Cargo.toml
 CARGO_SEARCH = rust/m4-growth-search/Cargo.toml
+# Compiler warnings fail the build; Cargo.lock pins every dependency.
+RUST_ENV = RUSTFLAGS="-D warnings"
 
 .PHONY: install check lint types test demo rust parity preview
 
 install:
-	$(PYTHON) -m pip install -e '.[dev,data,research,archive]'
+	$(PYTHON) -m pip install -e '.[dev]'
 
 check: lint types test demo rust parity
 
@@ -26,8 +28,8 @@ demo:
 rust:
 	cargo fmt --check --manifest-path $(CARGO_DECODER)
 	cargo fmt --check --manifest-path $(CARGO_SEARCH)
-	cargo test --offline --manifest-path $(CARGO_DECODER)
-	cargo test --manifest-path $(CARGO_SEARCH)
+	$(RUST_ENV) cargo test --locked --manifest-path $(CARGO_DECODER)
+	$(RUST_ENV) cargo test --locked --manifest-path $(CARGO_SEARCH)
 
 parity:
 	$(PYTHON) scripts/verify_rust_decoder_kernel.py --iterations 10 --fuzz-cases 200

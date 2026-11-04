@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import base64
 import gzip
-import hashlib
 import json
 import os
 import re
@@ -25,21 +24,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO, TextIO, cast
 
-from pumpquant.core.hashing import sha256_file
+from pumpquant.core.hashing import canonical_json, sha256_bytes, sha256_file
 
 _SCHEMA_VERSION = 1
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 _SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
-
-
-def _canonical(value: object) -> bytes:
-    return (
-        json.dumps(value, allow_nan=False, separators=(",", ":"), sort_keys=True) + "\n"
-    ).encode()
-
-
-def _sha256(value: bytes) -> str:
-    return hashlib.sha256(value).hexdigest()
 
 
 def _write_bytes(path: Path, payload: bytes) -> None:
@@ -112,7 +101,7 @@ class RawStreamConfig:
             f"{self.source_label}\0{self.endpoint_origin}\0{self.transport}\0"
             f"{self.stream_name}\0{self.commitment}\0{self.subscription_contract_sha256}"
         )
-        return _sha256(identity.encode())
+        return sha256_bytes(identity.encode())
 
 
 @dataclass(frozen=True, slots=True)
@@ -236,11 +225,11 @@ class RawStreamSegmentWriter:
             "monotonic_ns": monotonic,
             "payload_encoding": "base64",
             "payload_byte_count": len(payload),
-            "payload_sha256": _sha256(payload),
+            "payload_sha256": sha256_bytes(payload),
             "payload": base64.b64encode(payload).decode("ascii"),
             "metadata": meta,
         }
-        self._gzip.write(_canonical(envelope))
+        self._gzip.write(canonical_json(envelope))
         self._record_count += 1
         self._raw_payload_bytes += len(payload)
         self._first_sequence = sequence if self._first_sequence is None else self._first_sequence
@@ -281,7 +270,7 @@ class RawStreamSegmentWriter:
                 f"{self._config.source_id}\0{self._connection_id}\0"
                 f"{self._segment_sequence}\0{records_hash}"
             )
-            segment_id = _sha256(identity.encode())
+            segment_id = sha256_bytes(identity.encode())
             payload: dict[str, object] = {
                 "schema_version": _SCHEMA_VERSION,
                 "kind": "pumpquant.raw_stream_segment",
@@ -316,7 +305,7 @@ class RawStreamSegmentWriter:
                     }
                 },
             }
-            manifest_bytes = _canonical(payload)
+            manifest_bytes = canonical_json(payload)
             _write_bytes(self._staging / "manifest.json", manifest_bytes)
             _fsync_directory(self._staging)
             destination = self._segment_root / segment_id
@@ -340,7 +329,7 @@ class RawStreamSegmentWriter:
                 close_reason=reason,
                 records_sha256=records_hash,
                 records_byte_count=records_size,
-                manifest_sha256=_sha256(manifest_bytes),
+                manifest_sha256=sha256_bytes(manifest_bytes),
             )
         except BaseException:
             if not self._binary.closed:
@@ -412,7 +401,7 @@ def verify_raw_stream_segment(path: str | os.PathLike[str]) -> None:
                     raise ValueError("raw stream payload is invalid base64") from error
                 if envelope.get("payload_byte_count") != len(payload):
                     raise ValueError("raw stream payload length mismatch")
-                if envelope.get("payload_sha256") != _sha256(payload):
+                if envelope.get("payload_sha256") != sha256_bytes(payload):
                     raise ValueError("raw stream payload checksum mismatch")
                 if last_sequence is not None and sequence != last_sequence + 1:
                     raise ValueError("raw stream sequence is not contiguous")

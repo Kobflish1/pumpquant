@@ -1,7 +1,7 @@
 """Fresh-development individual event research registry.
 
 This is the first expanded *individual* search after the four compact v1
-families.  It reuses the source-backed axes in :mod:`pumpquant.event_research`
+families.  It reuses the source-backed axes in :mod:`pumpquant.research.event_research`
 but limits them to measurements that can be reconstructed causally from the
 sealed fresh feature root.  No combinations are present here: every candidate
 is one scalar signal, one polarity, one train-fitted quantile, and one holding
@@ -30,7 +30,7 @@ EXPERIMENT_ID = "fresh-expanded-individual-v1"
 PRIOR_ATTEMPTED_CANDIDATES = 1_239
 HOLDING_EVENTS = (20, 50)
 
-# These axes are deliberately restricted to causal event/reserve quantities
+# These axes are restricted to causal event/reserve quantities
 # present in the completed fresh projection or derived by the runner.  Wallet,
 # social, Mayhem, and global-concurrency fields are not silently imputed into
 # this run; they require a separate enriched projection and contract.
@@ -194,7 +194,7 @@ def create_fresh_raw_adapter_sql(
 
     The adapter only derives prefix information from the current row and its
     causal predecessor.  Fields that are not present in the minimal fresh
-    projection (wallet/global/social state) are explicit NULLs, while
+    projection (wallet/global/social state) are NULLs, while
     ``first_seen_censored`` is true so no candidate can silently treat missing
     participant history as clean history.
     """

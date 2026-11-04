@@ -3,7 +3,7 @@ use std::io::{self, BufRead};
 use std::process::ExitCode;
 use std::time::Instant;
 
-use pump_decoder_kernel::{parse_serialized_transaction, ParsedTransaction, SolanaWireError};
+use pump_decoder_kernel::{ParsedTransaction, SolanaWireError, parse_serialized_transaction};
 
 fn usage() {
     println!(

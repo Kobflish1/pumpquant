@@ -46,7 +46,7 @@ _DRY_RUN_EVIDENCE_TTL_SECONDS = 300.0
 class QueryResultPage:
     """One bounded page returned by a BigQuery ``jobs.query`` request.
 
-    ``rows`` intentionally retains BigQuery's REST row mappings.  Decoding
+    ``rows`` retains BigQuery's REST row mappings.  Decoding
     values against a schema belongs to a downstream ingestion layer; this
     adapter's responsibility is to transport the exact, bounded response.
     """
@@ -435,7 +435,7 @@ class GoogleBigQueryBackend:
             _validate_readonly_credentials(credentials)
             self._session = _load_authorized_session(credentials)
         else:
-            # Explicit transport injection is retained for deterministic tests.
+            # Transport injection is retained for deterministic tests.
             # Production construction goes through the exact-scope gate above.
             self._session = session
         self._dry_run_evidence: dict[str, _DryRunEvidence] = {}
@@ -481,7 +481,7 @@ class GoogleBigQueryBackend:
 
         ``Client.query`` uses ``jobs.insert``, whose OAuth surface rejects the
         narrower ``bigquery.readonly`` scope.  The synchronous REST method is
-        explicitly documented to accept that scope and, with ``dryRun=true``,
+        documented to accept that scope and, with ``dryRun=true``,
         validates and estimates without running or billing the query.
         """
         referenced = validate_plan_sql_provenance(plan)
@@ -559,11 +559,11 @@ class GoogleBigQueryBackend:
     ) -> Iterator[QueryResultPage]:
         """Execute one approved query and stream bounded REST result pages.
 
-        The approval is deliberately checked before this method returns an
+        The approval is checked before this method returns an
         iterator, so callers cannot accidentally make a request by merely
         constructing the iterator.  Every HTTP request uses the read-only
         AuthorizedSession already held by this backend and carries the plan's
-        explicit byte cap.
+        byte cap.
         """
         _validate_execution_bounds(max_results, max_polls, prefetch_one_page=prefetch_one_page)
         _validate_execution_approval(plan, approval)
@@ -596,7 +596,7 @@ class GoogleBigQueryBackend:
         This is the coordinator transport.  It performs exactly one
         read-only ``jobs.query`` POST, using the same plan/provenance/dry-run
         gates as :meth:`execute_query`, and returns only the server job ID.
-        The POST is intentionally not retried: callers persist an atomic
+        The POST is not retried: callers persist an atomic
         ``submission_attempt_started`` marker before invoking this method, so
         an ambiguous transport outcome is reconciled through ``jobs.get``
         rather than submitted a second time.
@@ -1006,10 +1006,10 @@ class GoogleBigQueryBackend:
         page_number = 0
         poll_count = 0
         seen_page_tokens: set[str] = set()
-        # Prefetch is deliberately a one-worker optimization. A single future
+        # Prefetch is a one-worker optimisation. A single future
         # is kept at all times, so opaque page tokens can never be reordered and
         # the AuthorizedSession never has more than one GET in flight from this
-        # stream. The executor is created only for an explicitly opted-in
+        # stream. The executor is created only for an opted-in
         # future run.
         executor: ThreadPoolExecutor | None = None
         prefetched: Future[Mapping[str, Any]] | None = None
@@ -1061,8 +1061,8 @@ class GoogleBigQueryBackend:
                 # Start the single bounded prefetch before yielding this page,
                 # allowing the consumer to process rows while the next GET is
                 # in flight. Do not consume poll budget early when the caller
-                # has explicitly set it to zero; that preserves the existing
-                # first-page-then-budget-error behavior.
+                # has set it to zero; that preserves the existing
+                # first-page-then-budget-error behaviour.
                 if executor is not None and next_page_token is not None and poll_count < max_polls:
                     poll_count += 1
                     prefetched = executor.submit(

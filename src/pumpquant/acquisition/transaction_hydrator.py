@@ -1,8 +1,8 @@
 """Lossless, restartable Solana ``getTransaction`` archival.
 
 The BigQuery Instructions archive identifies transactions but does not contain
-their serialized bytes or execution metadata.  This module hydrates those
-signatures through Solana JSON-RPC and publishes small immutable segments.  A
+their serialised bytes or execution metadata.  This module hydrates those
+signatures through Solana JSON-RPC and publishes small segments.  A
 segment contains the exact HTTP response bodies, a canonical per-signature
 coverage ledger, a separate exception ledger, and hashes for every file.
 
@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Protocol, TypeAlias, cast
 from urllib.parse import urlsplit
 
-from pumpquant.core.hashing import sha256_file
+from pumpquant.core.hashing import canonical_json, sha256_bytes, sha256_file
 
 JSONValue: TypeAlias = None | bool | int | float | str | list["JSONValue"] | dict[str, "JSONValue"]
 JSONObject: TypeAlias = dict[str, JSONValue]
@@ -40,16 +40,6 @@ _HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
 _TRANSIENT_HTTP_STATUSES = frozenset({408, 425, 429, 500, 502, 503, 504})
 _TRANSIENT_RPC_CODES = frozenset({429, -32005, -32004, -32002, -32603})
 _SCHEMA_VERSION = 1
-
-
-def _canonical_json(value: object) -> bytes:
-    return (
-        json.dumps(value, allow_nan=False, separators=(",", ":"), sort_keys=True) + "\n"
-    ).encode("utf-8")
-
-
-def _sha256_bytes(value: bytes) -> str:
-    return hashlib.sha256(value).hexdigest()
 
 
 def _fsync_directory(path: Path) -> None:
@@ -93,7 +83,7 @@ def _signature(value: object) -> str:
 
 @dataclass(frozen=True, slots=True, repr=False)
 class SolanaRpcConfig:
-    """Configuration whose representation intentionally redacts all secrets."""
+    """Configuration whose representation redacts all secrets."""
 
     endpoint: str
     source_label: str = "solana-rpc"
@@ -422,7 +412,7 @@ def _status_record(
     }
     if rpc_response is not None:
         record["rpc_response"] = rpc_response
-        record["rpc_response_sha256"] = _sha256_bytes(_canonical_json(rpc_response))
+        record["rpc_response_sha256"] = sha256_bytes(canonical_json(rpc_response))
     if error_kind is not None:
         record["error_kind"] = error_kind
     return record
@@ -649,9 +639,9 @@ def _hydrate_segment(
                 "hydration did not produce exactly one coverage record per signature"
             )
 
-        coverage = b"".join(_canonical_json(records[signature]) for signature in signatures)
+        coverage = b"".join(canonical_json(records[signature]) for signature in signatures)
         exceptions = b"".join(
-            _canonical_json(records[signature])
+            canonical_json(records[signature])
             for signature in signatures
             if records[signature]["status"] != "found"
         )
@@ -677,11 +667,11 @@ def _hydrate_segment(
             "commitment": config.commitment,
             "max_supported_transaction_version": config.max_supported_transaction_version,
             "input_signature_count": len(signatures),
-            "input_signature_sha256": _sha256_bytes("\n".join(signatures).encode("ascii")),
+            "input_signature_sha256": sha256_bytes("\n".join(signatures).encode("ascii")),
             "counts": counts,
             "files": files,
         }
-        manifest_payload = _canonical_json(manifest)
+        manifest_payload = canonical_json(manifest)
         _write_bytes(staging / "manifest.json", manifest_payload)
         _fsync_directory(staging / "wire")
         _fsync_directory(staging)
@@ -750,7 +740,7 @@ def hydrate_transactions(
 
 
 def verify_hydration_segment(path: str | os.PathLike[str]) -> None:
-    """Verify an immutable hydration segment and every file it binds."""
+    """Verify a hydration segment and every file it binds."""
 
     root = Path(path)
     manifest_path = root / "manifest.json"

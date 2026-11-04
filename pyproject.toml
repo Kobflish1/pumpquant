@@ -5,13 +5,32 @@ build-backend = "hatchling.build"
 [project]
 name = "pumpquant"
 version = "0.1.0"
-description = "Execution-aware research and strategy discovery for Pump.fun token markets"
+description = "Backtesting engine for Pump.fun, Solana's token-launch market"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Elias Hassari" }]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Rust",
+  "Topic :: Office/Business :: Financial :: Investment",
+  "Typing :: Typed",
+  "Private :: Do Not Upload",
+]
 dependencies = [
   "certifi>=2024.8",
 ]
+
+[project.urls]
+Repository = "https://github.com/Kobflish1/pumpquant-preview"
+Documentation = "https://github.com/Kobflish1/pumpquant-preview/tree/main/docs"
 
 [project.optional-dependencies]
 data = [
@@ -28,7 +47,7 @@ bigquery = [
   "google-cloud-bigquery-storage>=2.27,<3",
 ]
 archive = [
-  "pyarrow>=18",
+  "pumpquant[data]",
   "google-cloud-bigquery-storage>=2.27,<3",
   "boto3>=1.35",
   "orjson>=3.10",
@@ -38,7 +57,7 @@ stream = [
   "websockets>=16.1,<17",
 ]
 dev = [
-  "arch>=8,<9",
+  "pumpquant[data,research,archive]",
   "hypothesis>=6.100",
   "mypy>=1.13",
   "pytest>=8.3",
@@ -81,8 +100,3 @@ module = [
 ]
 ignore_missing_imports = true
 follow_imports = "skip"
-
-# The correction-v2 runner scripts are private and not part of this snapshot.
-[[tool.mypy.overrides]]
-module = ["scripts", "scripts.*"]
-ignore_missing_imports = true

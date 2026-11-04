@@ -2,8 +2,8 @@
 
 The registry is shared by discovery and exact threshold evaluation.  Every
 expression must use only columns known at ``decision_time_ms``.  Algebraic
-complements (for example sell share = 1 - buy share) are deliberately omitted:
-they create no new behavioral partition and only inflate the trial family.
+complements (for example sell share = 1 - buy share) are omitted:
+they create no new behavioural partition and only inflate the trial family.
 """
 
 from __future__ import annotations

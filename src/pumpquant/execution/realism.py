@@ -2,7 +2,7 @@
 
 The live sample is too small for a high-capacity latency model.  This module
 therefore keeps complete observed round-trip templates together, exposes
-explicit support gates, and supplies deterministic block resampling.  A
+support gates, and supplies deterministic block resampling.  A
 template is an execution path, not an independent collection of marginal
 latency draws.
 """
@@ -141,7 +141,7 @@ def _leg_template(
         if isinstance(row.get("estimated_total_fee_lamports"), int)
     )
     if not fees:
-        # This is deliberately conservative relative to the current finalist's
+        # This is conservative relative to the current finalist's
         # fixed 23k convention and makes missing fee telemetry visible.
         fees = (23_000,) * landed_attempt
     last_ready = ready[-1] if ready else {}

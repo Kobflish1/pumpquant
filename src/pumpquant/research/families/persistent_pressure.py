@@ -2,7 +2,7 @@
 
 This family transfers one narrow market-microstructure hypothesis: persistent
 signed flow can predict short-horizon price pressure, but the signal should be
-expressed in a state-aware way for an AMM.  It therefore compares normalized
+expressed in a state-aware way for an AMM.  It therefore compares normalised
 signed quote flow with reserve-price impact space.  The registry contains no
 outcomes, fitted thresholds, winner selection, or holdout access.
 """

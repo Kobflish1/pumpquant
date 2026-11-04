@@ -1,4 +1,4 @@
-"""Versioned interchange for normalized swaps and derived bars.
+"""Versioned interchange for normalised swaps and derived bars.
 
 JSONL is the dependency-free interchange format.  Parquet helpers are enabled
 by the optional ``pumpquant[data]`` dependencies and use the same records.
@@ -109,7 +109,7 @@ def read_bars(path: str | Path) -> list[Bar]:
 
 
 def write_parquet(path: str | Path, records: Iterable[Record]) -> int:
-    """Write normalized records to Parquet when the data extra is installed."""
+    """Write normalised records to Parquet when the data extra is installed."""
     try:
         import pyarrow as pa
         import pyarrow.parquet as pq

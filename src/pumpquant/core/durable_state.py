@@ -1,8 +1,8 @@
 """Crash-atomic, private JSON state files.
 
 The execution path uses small JSON objects for local recovery state.  This
-module deliberately has no cloud or database dependencies: it writes a fully
-serialized object to a private temporary file, makes that file durable, and
+module has no cloud or database dependencies: it writes a fully
+serialised object to a private temporary file, makes that file durable, and
 then publishes it with an atomic directory operation.
 """
 
@@ -22,7 +22,7 @@ def _encode_object(payload: Mapping[str, Any]) -> bytes:
     if not isinstance(payload, Mapping):
         raise TypeError("payload must be a mapping representing a JSON object")
     try:
-        # Materialize the mapping before serializing it.  Besides accepting
+        # Materialise the mapping before serialising it.  Besides accepting
         # Mapping implementations that json does not know about, this gives
         # callers a stable snapshot while the file is being written.
         value = dict(payload)
@@ -142,9 +142,6 @@ def atomic_private_json_write(
                 os.unlink(temporary_path)
 
 
-# A descriptive short alias is convenient for callers that do not need to
-# mention the privacy guarantees in every call site.
-write_json_object = atomic_private_json_write
-
-
-__all__ = ["atomic_private_json_write", "write_json_object"]
+__all__ = [
+    "atomic_private_json_write",
+]

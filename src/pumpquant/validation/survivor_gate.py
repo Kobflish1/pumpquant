@@ -1,7 +1,7 @@
 """Fail-closed exact execution and shared-capital development survivor gates.
 
-The statistical research grids deliberately use normalized floating-point AMM
-labels.  This module is the separate promotion boundary: it re-quotes the
+The statistical research grids use normalised floating-point AMM
+labels.  This is the separate promotion boundary: it re-quotes the
 committed development positions with protocol integer math and then replays one
 cash-constrained, chronological portfolio.  It has no filesystem or holdout
 reader; callers must pass already verified development rows and causal FX data.

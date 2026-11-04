@@ -1,6 +1,6 @@
-"""Immutable full-block archive for efficient Solana transaction hydration.
+"""Full-block archive for efficient Solana transaction hydration.
 
-One ``getBlock`` call preserves transaction order and hydrates every serialized
+One ``getBlock`` call preserves transaction order and hydrates every serialised
 transaction and execution metadata record in a slot.  For Pump/PumpSwap-heavy
 periods this is orders of magnitude fewer requests than one ``getTransaction``
 call per discovered signature, while also retaining useful non-Pump context.
@@ -14,7 +14,6 @@ header values are never persisted.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import shutil
@@ -26,14 +25,14 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Protocol, cast
+from typing import cast
 
 from pumpquant.acquisition.transaction_hydrator import (
     JsonRpcTransport,
     SolanaRpcConfig,
     UrllibJsonRpcTransport,
 )
-from pumpquant.core.hashing import sha256_file
+from pumpquant.core.hashing import canonical_json, sha256_bytes, sha256_file
 
 _SCHEMA_VERSION = 1
 _TRANSIENT_HTTP_STATUSES = frozenset({408, 425, 429, 500, 502, 503, 504})
@@ -50,16 +49,6 @@ _STATUSES = (
 )
 
 
-def _canonical_json(value: object) -> bytes:
-    return (
-        json.dumps(value, allow_nan=False, separators=(",", ":"), sort_keys=True) + "\n"
-    ).encode()
-
-
-def _sha256(value: bytes) -> str:
-    return hashlib.sha256(value).hexdigest()
-
-
 def _write_bytes(path: Path, payload: bytes) -> dict[str, object]:
     descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     try:
@@ -72,7 +61,7 @@ def _write_bytes(path: Path, payload: bytes) -> dict[str, object]:
         os.fsync(descriptor)
     finally:
         os.close(descriptor)
-    return {"byte_count": len(payload), "sha256": _sha256(payload)}
+    return {"byte_count": len(payload), "sha256": sha256_bytes(payload)}
 
 
 def _fsync_directory(path: Path) -> None:
@@ -184,10 +173,6 @@ class _RateLimiter:
         delay = reserved - now
         if delay > 0:
             self._sleeper(delay)
-
-
-class _TransportFactory(Protocol):
-    def __call__(self) -> JsonRpcTransport: ...
 
 
 def _request(slot: int, rpc: SolanaRpcConfig, config: BlockArchiveConfig) -> bytes:
@@ -539,7 +524,7 @@ def _archive_segment(
 ) -> tuple[Path, dict[str, int]]:
     created_at = _iso_utc(clock())
     segment_seed = f"{rpc.source_id}\0{created_at}\0" + ",".join(map(str, slots))
-    segment_id = _sha256(segment_seed.encode())
+    segment_id = sha256_bytes(segment_seed.encode())
     segment_root = root / "segments"
     segment_root.mkdir(parents=True, exist_ok=True, mode=0o700)
     staging = Path(tempfile.mkdtemp(prefix=f".{segment_id}.", suffix=".partial", dir=segment_root))
@@ -578,9 +563,9 @@ def _archive_segment(
 
         if set(records) != set(slots):
             raise RuntimeError("block archive did not produce one coverage record per slot")
-        coverage = b"".join(_canonical_json(records[slot]) for slot in slots)
+        coverage = b"".join(canonical_json(records[slot]) for slot in slots)
         exceptions = b"".join(
-            _canonical_json(records[slot])
+            canonical_json(records[slot])
             for slot in slots
             if records[slot]["status"] not in {"found", "skipped"}
         )
@@ -605,11 +590,11 @@ def _archive_segment(
             "slot_count": len(slots),
             "min_slot": min(slots),
             "max_slot": max(slots),
-            "slots_sha256": _sha256("\n".join(map(str, slots)).encode()),
+            "slots_sha256": sha256_bytes("\n".join(map(str, slots)).encode()),
             "counts": counts,
             "files": files,
         }
-        _write_bytes(staging / "manifest.json", _canonical_json(manifest))
+        _write_bytes(staging / "manifest.json", canonical_json(manifest))
         _fsync_directory(wire_root)
         _fsync_directory(staging)
         destination = segment_root / segment_id
@@ -633,7 +618,7 @@ def archive_full_blocks(
     sleeper: Callable[[float], None] = time.sleep,
     progress: Callable[[BlockArchiveProgress], None] | None = None,
 ) -> BlockArchiveResult:
-    """Fetch full finalized blocks and publish restartable immutable segments."""
+    """Fetch full finalised blocks and publish restartable segments."""
 
     if not isinstance(rpc, SolanaRpcConfig):
         raise TypeError("rpc must be a SolanaRpcConfig")

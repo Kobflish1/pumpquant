@@ -1,7 +1,7 @@
 """Exact chronological validation for a frozen wallet-growth candidate.
 
-The module deliberately has no approximate notional scaling. Every simulated
-trade is selected from a replayed outcome at an explicit budget and execution
+The module has no approximate notional scaling. Every simulated
+trade is selected from a replayed outcome at a budget and execution
 scenario. Validation windows are real consecutive clock intervals.
 """
 
@@ -313,7 +313,7 @@ def simulate_exact_window_policy(
 ) -> WindowResult:
     """Replay a dynamic policy whose sole boundary is the final wallet goal.
 
-    The policy may skip or choose any explicitly replayed budget using current
+    The policy may skip or choose any replayed budget using current
     wallet and remaining time. No intermediate wealth target is imposed.
     """
     if window.end_time_ms - window.start_time_ms != goal.horizon_ms:
