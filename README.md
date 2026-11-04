@@ -27,7 +27,7 @@
 
 <picture>
   <source srcset="assets/hero.avif" type="image/avif">
-  <img src="assets/hero.webp" width="100%" alt="PumpQuant: the title resolves in glass, then the research dashboard rises into view.">
+  <img src="assets/hero.webp" width="100%" alt="PumpQuant's dashboard on the demo run, with a replayed take-profit trade. The shot dissolves, the PumpQuant title resolves in glass, and the dashboard rises back into view.">
 </picture>
 
 <br>
@@ -214,7 +214,7 @@ Its output on this repository:
   <img src="assets/check.png" width="100%" alt="make check: ruff clean, files formatted, mypy clean on 112 source files, 506 tests passed, both examples run, Rust tests 9, 2, 3 and 2 passed, and decoder parity on 16 valid, 4 malformed and 200 differential fixtures.">
 </picture>
 
-<p align="center"><sub>An excerpt of a real run on 4 November 2026; progress and compiler lines are left out. <a href="docs/STATUS.md">Status</a> lists every verified result, with exact versions.</sub></p>
+<p align="center"><sub>An excerpt of a real run on 4 November 2026; progress, compiler lines and the examples' output are left out. <a href="docs/STATUS.md">Status</a> lists every verified result, with exact versions.</sub></p>
 
 ## Documentation
 
