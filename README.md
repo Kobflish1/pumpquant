@@ -198,7 +198,7 @@ PumpQuant was built locally from 13 July 2026: first the data archives and the d
   <img src="assets/timeline.png" width="100%" alt="Stacked bar chart of files created per day in the local PumpQuant folder from 13 July to 4 August 2026, by area: data and decoding, model and execution, research and validation, and tests, docs and UI. Peaks on 15 and 16 July (archives sealed), 18 July (Rust decoder) and 28 July (new data source); live stage one on 26 July, stage two and the audit on 27 July.">
 </picture>
 
-<p align="center"><sub>The 883 files that survive in the local folder, by the day each was created. <a href="docs/HISTORY.md">The history</a> dates every phase and names its sources.</sub></p>
+<p align="center"><sub>From the creation dates of the files in the original folder. <a href="docs/HISTORY.md">The history</a> dates every phase and names its sources.</sub></p>
 
 ## Development
 
@@ -228,7 +228,7 @@ This is the first public release. [ROADMAP.md](ROADMAP.md) plans what follows in
 
 - [ ] Publish the CI workflow, which runs the `make check` targets on Python 3.12, 3.13 and 3.14
 - [ ] Tag `v0.1.0`, with a changelog, the wheel and the source archive
-- [ ] Split the three modules over 1,500 lines and the 30 functions over 150 lines, keeping every output byte-identical
+- [ ] Split the three modules over 1,500 lines and the 30 functions over 150 lines
 - [ ] Test the event screens end to end (32% and 37% covered) and the BigQuery execute path (31%)
 - [ ] Run clippy on both Rust crates and add reproducible benchmarks
 - [ ] Desktop apps for Apple silicon Macs and for Windows, as the main way to use PumpQuant
