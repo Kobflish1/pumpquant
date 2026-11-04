@@ -7,7 +7,6 @@ the demo run. No artifact paths, services, provider calls or wallets are touched
 from __future__ import annotations
 
 from dataclasses import asdict
-from pathlib import Path
 from typing import Any
 
 from pumpquant.dashboard.server import (
@@ -20,7 +19,6 @@ from pumpquant.dashboard.server import (
 from pumpquant.demo import DemoRun, run_demo
 from pumpquant.execution.bar_replay import RoundTrip
 
-STATIC_ROOT = Path(__file__).resolve().parents[3] / "dashboard" / "static"
 NOT_IN_DEMO = "not_part_of_synthetic_demo"
 
 
@@ -60,7 +58,6 @@ class PreviewDashboard(LiveDashboard):
             DashboardConfig(
                 artifact_roots={},
                 service_names=(),
-                static_root=STATIC_ROOT,
                 host="127.0.0.1",
                 port=port,
             ),

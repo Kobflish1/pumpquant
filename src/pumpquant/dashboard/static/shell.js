@@ -163,17 +163,26 @@ export function resolveWords(element) {
 }
 
 /**
- * Chart time labels people can read. The demo's clock starts at zero, which a
- * chart library would print as "1 Jan 1970"; those times are shown as elapsed
- * minutes and seconds instead. Real timestamps show the local time of day.
+ * Chart labels people can read. Real timestamps show the local time of day. The demo's
+ * clock has no calendar date, so its charts start at the token's launch and are labelled
+ * with the time since then ("0 s", "45 s", "2 min 30 s") rather than as times in 1970.
  */
 export function chartTime(time) {
   const seconds = typeof time === "number" ? time : Date.UTC(time.year, time.month - 1, time.day) / 1000;
-  if (seconds < 1e9) {
-    const m = Math.floor(seconds / 60), s = Math.floor(seconds % 60);
-    return `${m}:${String(s).padStart(2, "0")}`;
-  }
+  if (seconds < 1e9) return sinceLaunch(seconds);
   return new Date(seconds * 1000).toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+}
+
+function sinceLaunch(total) {
+  const minutes = Math.floor(total / 60), seconds = Math.round(total % 60);
+  if (minutes === 0) return `${seconds} s`;
+  return seconds ? `${minutes} min ${seconds} s` : `${minutes} min`;
+}
+
+/** Whole percentages with a true minus sign, for percentage price scales. */
+export function chartPercent(value) {
+  const rounded = Math.round(value);
+  return `${rounded < 0 ? "−" : ""}${Math.abs(rounded)}%`;
 }
 
 export function initShell({ onThemeChange } = {}) {

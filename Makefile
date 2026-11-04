@@ -21,7 +21,7 @@ test:
 	$(PYTHON) -m pytest
 
 demo:
-	$(PYTHON) examples/reproduce_demo.py
+	$(PYTHON) examples/periods.py
 
 rust:
 	cargo fmt --check --manifest-path $(CARGO_DECODER)

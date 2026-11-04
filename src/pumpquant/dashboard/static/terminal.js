@@ -7,7 +7,7 @@
 
 // Format numbers in the page language so figures and copy read consistently.
 const LOCALE = document.documentElement.lang || undefined;
-import { chartTime, initShell } from "./shell.js";
+import { chartPercent, chartTime, initShell } from "./shell.js";
 
 // The shared shell owns the sidebar, theme, section highlight and motion.
 // On a theme change the chart re-reads its colours from the new tokens.
@@ -520,7 +520,7 @@ function ensureTokenChart() {
     grid: { vertLines: { visible: false }, horzLines: { color: css("--line", "rgba(255,255,255,0.08)") } },
     crosshair: { mode: library.CrosshairMode?.Normal ?? 0, vertLine: { color: css("--line-bright", "rgba(255,255,255,0.16)"), style: 2, labelBackgroundColor: css("--surface-3", "#2c2c2e") }, horzLine: { color: css("--line-bright", "rgba(255,255,255,0.16)"), style: 2, labelBackgroundColor: css("--surface-3", "#2c2c2e") } },
     timeScale: { timeVisible: true, secondsVisible: true, borderVisible: false, tickMarkFormatter: chartTime },
-    localization: { timeFormatter: chartTime },
+    localization: { timeFormatter: chartTime, percentageFormatter: chartPercent },
     // Simulated prices are tiny raw numbers; show the move in percent, as the overview does.
     rightPriceScale: { borderVisible: false, autoScale: true, mode: window.PUMPQUANT_PREVIEW ? (library.PriceScaleMode?.Percentage ?? 2) : 0 },
   });
@@ -538,7 +538,10 @@ function ensureTokenChart() {
 
 function renderTokenChart(row) {
   const payload = state.chartPayload;
-  const sourceBars = list(payload?.bars).map((bar) => ({ time: num(bar.time), open: num(bar.open), high: num(bar.high), low: num(bar.low), close: num(bar.close), quote_volume: num(bar.quote_volume) })).filter((bar) => bar.time !== null && bar.open !== null && bar.high !== null && bar.low !== null && bar.close !== null);
+  // Demo bars carry a synthetic clock, so they are drawn from the token's launch (its first bar).
+  const origin = payload?.synthetic ? num(list(payload.bars)[0]?.time) ?? 0 : 0;
+  const sinceOrigin = (seconds) => (seconds === null ? null : seconds - origin);
+  const sourceBars = list(payload?.bars).map((bar) => ({ time: sinceOrigin(num(bar.time)), open: num(bar.open), high: num(bar.high), low: num(bar.low), close: num(bar.close), quote_volume: num(bar.quote_volume) })).filter((bar) => bar.time !== null && bar.open !== null && bar.high !== null && bar.low !== null && bar.close !== null);
   const multiplier = marketCapMultiplier();
   const aggregated = aggregateBars(sourceBars);
   const bars = multiplier === null ? [] : aggregated.map((bar) => ({ time: bar.time, open: bar.open * multiplier, high: bar.high * multiplier, low: bar.low * multiplier, close: bar.close * multiplier }));
@@ -576,7 +579,7 @@ function renderTokenChart(row) {
   const markers = [];
   list(payload.trades).forEach((trade) => {
     const active = num(trade.trade_id) === num(state.selectedTradeId);
-    const signalTime = bucketSeconds(secondsFromNs(trade.signal_time_ns)); const entryTime = bucketSeconds(secondsFromNs(trade.entry_time_ns)); const exitTime = bucketSeconds(secondsFromNs(trade.exit_time_ns));
+    const signalTime = bucketSeconds(sinceOrigin(secondsFromNs(trade.signal_time_ns))); const entryTime = bucketSeconds(sinceOrigin(secondsFromNs(trade.entry_time_ns))); const exitTime = bucketSeconds(sinceOrigin(secondsFromNs(trade.exit_time_ns)));
     if (signalTime !== null) markers.push({ time: signalTime, position: "aboveBar", color: css("--amber", "#f5b942"), shape: "circle", text: active ? "Signal" : "", size: active ? 2 : 1 });
     if (entryTime !== null) markers.push({ time: entryTime, position: "belowBar", color: css("--green", "#43d58a"), shape: "arrowUp", text: active ? "Buy" : "", size: active ? 2 : 1 });
     if (exitTime !== null) markers.push({ time: exitTime, position: "aboveBar", color: css("--red", "#ff6478"), shape: "arrowDown", text: active ? "Sell" : "", size: active ? 2 : 1 });

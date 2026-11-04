@@ -12,6 +12,7 @@ import pytest
 
 import pumpquant.dashboard.server as live_dashboard_module
 from pumpquant.dashboard.server import (
+    STATIC_ROOT,
     AtlasError,
     AtlasIdeasStore,
     AtlasSignalsStore,
@@ -816,14 +817,10 @@ def test_event_generation_and_sse_payload() -> None:
 
 def test_v2_frontend_uses_producer_eta_and_monotonic_sequence() -> None:
     # The full research terminal; index.html is the plain-language overview.
-    app = (Path(__file__).parents[2] / "dashboard" / "static" / "terminal.js").read_text()
-    index = (Path(__file__).parents[2] / "dashboard" / "static" / "terminal.html").read_text()
+    app = (STATIC_ROOT / "terminal.js").read_text()
+    index = (STATIC_ROOT / "terminal.html").read_text()
     tradingview = (
-        Path(__file__).parents[2]
-        / "dashboard"
-        / "static"
-        / "vendor"
-        / "lightweight-charts.standalone.production.js"
+        STATIC_ROOT / "vendor" / "lightweight-charts.standalone.production.js"
     ).read_text()
     assert "Calibrating" not in app
     assert "progressSequence" in app

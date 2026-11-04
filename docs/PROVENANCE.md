@@ -18,7 +18,7 @@ The research logic is the original. The changes are about structure and correctn
 
 No repository-wide licence has been granted. The Rust manifests already declare MIT for those crates, and that declaration is kept. It does not cover the rest of the repository. Redistribution rights for the complete package should be resolved before public release.
 
-The dashboard bundles Lightweight Charts 5.2.0 under Apache-2.0. Its distribution header is kept, the version-specific [LICENSE](../dashboard/static/vendor/LICENSE) and [NOTICE](../dashboard/static/vendor/NOTICE) files sit beside it, and the chart visibly credits TradingView. The dashboard fonts, Mona Sans and Commit Mono, are used under the SIL Open Font License; their licence files are in `dashboard/static/fonts/`.
+The dashboard bundles Lightweight Charts 5.2.0 under Apache-2.0. Its distribution header is kept, the version-specific [LICENSE](../src/pumpquant/dashboard/static/vendor/LICENSE) and [NOTICE](../src/pumpquant/dashboard/static/vendor/NOTICE) files sit beside it, and the chart visibly credits TradingView. The dashboard fonts, Mona Sans and Commit Mono, are used under the SIL Open Font License; their licence files are in `src/pumpquant/dashboard/static/fonts/`.
 
 The event schema lock identifies the upstream public protocol documentation revision and its content hashes. Source modules cite the upstream SDK or protocol definitions used for arithmetic and decoding. Those references record technical provenance; they do not imply endorsement or grant rights over an upstream project.
 

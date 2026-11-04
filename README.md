@@ -30,12 +30,12 @@
 
 <br>
 
-PumpQuant replays every [Pump.fun](https://pump.fun) trade with the latency, fees and failed transactions a live trader would have faced, and tests each strategy only on data it has never seen.
+PumpQuant replays [Pump.fun](https://pump.fun) trades with the latency, fees and failed transactions a live trader would have faced, and tests each strategy only on data it has never seen.
 
 <table>
   <tr>
     <td width="50%" valign="top">
-      <p><b>Exact pricing</b><br>Integer quotes that match the Pump and PumpSwap programs, rounding included.</p>
+      <p><b>Exact pricing</b><br>Integer quotes that follow the official SDK formulas, rounding included.</p>
       <p><b>Realistic execution</b><br>Latency, retries, priority fees, failed transactions and shared capital.</p>
       <p><b>Strict decoding</b><br>Solana transactions and program events, with a Rust decoder checked against the Python one.</p>
     </td>
@@ -71,13 +71,12 @@ PumpQuant replays every [Pump.fun](https://pump.fun) trade with the latency, fee
 </p>
 
 > [!NOTE]
-> The demo runs on generated data: 36 simulated tokens, not market prices. It shows how the method works, not whether a strategy makes money.
+> The demo runs on generated data: 36 simulated tokens, not market prices. The generator plants a weak momentum signal so the search has something to find. The demo shows how the method works, not whether a strategy makes money.
 
 ## Quick start
 
 ```sh
 pip install -e '.[dev,data,research,archive]'
-python examples/reproduce_demo.py
 python examples/periods.py
 pumpquant preview
 ```
@@ -144,12 +143,12 @@ PumpQuant started as a live trading system. Its early stage was profitable, but 
 
 <picture>
   <source media="(prefers-color-scheme: light)" srcset="assets/audit-light.png">
-  <img src="assets/audit.png" width="100%" alt="Take-profit exits captured: 34.4% in the backtest model, 12.2% (6 of 49) live. Time from decision to fill, live: 1.9 s median entry, 4.9 s 99th-percentile entry, about 71 s for the slowest exit.">
+  <img src="assets/audit.png" width="100%" alt="Share of trades that exited at take-profit: 34.4% expected by the backtest model; live, 20.4% (10 of 49) reached the target and 12.2% (6 of 49) were captured. Latency in the live run: entry 1.9 s at the median and 4.9 s at the 99th percentile; exit, worst case (retry tail), about 71 s.">
 </picture>
 
 <p align="center"><sub>Figures from the historical audit, reported in the <a href="docs/PARITY_CASE_STUDY.md">case study</a>. They are not reproduced by this package.</sub></p>
 
-Ten positions crossed their take-profit target, but only six exits were captured. Features had used trades from the whole decision second, and fill time had been measured from send rather than from the decision. The engine was rebuilt so none of these can recur. Under the corrected model the strategy lost money in all 16 test windows and was retired.
+Ten positions crossed their take-profit target, but only six exits were captured. Features had used trades from the whole decision second, and fill time had been measured from send rather than from the decision. The engine now models each of these, and tests hold them in place. Under the corrected model the strategy lost money in all 16 test windows and was retired.
 
 <details>
 <summary><b>The six differences the audit found</b></summary>

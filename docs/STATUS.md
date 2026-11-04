@@ -8,7 +8,7 @@ Checked on 4 November 2026 on macOS arm64, with Python 3.12.14 and 3.14.7 and Ru
 
 | Check | Result | What it establishes |
 | :-- | :-- | :-- |
-| `pumpquant demo`, seed 7 | 1,080 bars, 16 candidates, 48 fold trials, 3 folds, 47 test outcomes, identical to `examples/synthetic-demo.json` | The generate, feature, replay and search path runs and is deterministic |
+| `pumpquant demo`, seed 7 | 1,080 bars, 16 candidates, 48 fold trials, 3 folds, 47 test outcomes, byte-identical to `examples/synthetic-demo.json`, checked by `tests/test_demo.py` | The generate, feature, replay and search path runs and is deterministic |
 | Python tests | 489 passed on 3.12 and on 3.14 | Decoding, availability, exact math, replay, wallet validation, source adapters and the read-only dashboard behave as specified on controlled fixtures |
 | Static checks | ruff clean; mypy `--strict` clean on 115 source files | Consistent style and fully typed code |
 | Rust | Both crates format-clean, zero compiler warnings; 11 decoder and 5 search-kernel tests passed | Parser and CLI error contracts; the search kernels build and pass their tests |

@@ -6,7 +6,7 @@
 //   /api/trade-chart        price bars around one trade, for the replay
 // Nothing here writes, trades or contacts a market.
 
-import { $, $$, chartTime, initShell, reduceMotion, resolveWords, revealOnScroll } from "./shell.js";
+import { $, $$, chartPercent, chartTime, initShell, reduceMotion, resolveWords, revealOnScroll } from "./shell.js";
 
 const API = { snapshot: "/api/snapshot", trades: "/api/candidate-trades", chart: "/api/trade-chart" };
 
@@ -177,7 +177,7 @@ function ensureChart() {
     grid: { vertLines: { visible: false }, horzLines: { color: css("--line") } },
     rightPriceScale: { borderVisible: false, mode: lib.PriceScaleMode?.Percentage ?? 2 },
     timeScale: { borderVisible: false, timeVisible: true, secondsVisible: true, tickMarkFormatter: chartTime },
-    localization: { timeFormatter: chartTime },
+    localization: { timeFormatter: chartTime, percentageFormatter: chartPercent },
     crosshair: { vertLine: { color: css("--line"), style: 2, labelBackgroundColor: css("--card-hi") }, horzLine: { color: css("--line"), style: 2, labelBackgroundColor: css("--card-hi") } },
     handleScroll: true, handleScale: true,
   });
@@ -206,8 +206,11 @@ async function selectTrade(index) {
   try {
     const payload = await getJson(`${API.chart}?${new URLSearchParams({ candidate: period.id, trade_id: String(trade.trade_id) })}`);
     if (state.periods[state.selected] !== period || state.trade !== index) return; // a newer selection won
-    view.candles.setData((payload.bars ?? []).map((b) => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close })));
-    const at = (ns) => Math.floor(ns / 1e9);
+    // Demo bars carry a synthetic clock, so they are drawn from the token's launch (its first bar).
+    const bars = payload.bars ?? [];
+    const origin = payload.synthetic && bars.length ? bars[0].time : 0;
+    view.candles.setData(bars.map((b) => ({ time: b.time - origin, open: b.open, high: b.high, low: b.low, close: b.close })));
+    const at = (ns) => Math.floor(ns / 1e9) - origin;
     view.markers.setMarkers([
       { time: at(trade.signal_time_ns), position: "aboveBar", color: css("--amber"), shape: "circle", text: "Signal" },
       { time: at(trade.entry_time_ns), position: "belowBar", color: css("--green"), shape: "arrowUp", text: "Buy" },

@@ -27,6 +27,7 @@ from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from importlib.resources import files
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
@@ -73,6 +74,9 @@ __all__ = [
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 DEFAULT_MANIFEST = "manifest.json"
+# The pages, scripts, fonts and chart library ship inside the package, so an installed
+# wheel serves the same dashboard as a source checkout.
+STATIC_ROOT = Path(str(files("pumpquant.dashboard") / "static"))
 LIFECYCLE_STATES = frozenset({"pending", "sealed", "error", "stale"})
 _SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 _SERVICE_RE = re.compile(r"^[A-Za-z0-9_.@:%+\-]+\.(?:service|timer|socket)$")
@@ -719,7 +723,7 @@ class DashboardConfig:
 
     artifact_roots: Mapping[str, Path] = field(default_factory=dict)
     service_names: tuple[str, ...] = ()
-    static_root: Path = Path("dashboard/static")
+    static_root: Path = STATIC_ROOT
     host: str = DEFAULT_HOST
     port: int = DEFAULT_PORT
     manifest_name: str = DEFAULT_MANIFEST
@@ -804,8 +808,11 @@ class DashboardConfig:
         if not isinstance(services_raw, Sequence) or isinstance(services_raw, (str, bytes)):
             raise ConfigError("service_names must be an array of exact systemd unit names")
         services = tuple(services_raw)
-        static_raw = raw.get("static_root", "dashboard/static")
-        static = _resolve_config_path(static_raw, base_dir=base, label="static_root")
+        static = (
+            _resolve_config_path(raw["static_root"], base_dir=base, label="static_root")
+            if "static_root" in raw
+            else STATIC_ROOT
+        )
         port_raw = raw.get("port", DEFAULT_PORT)
         stale_raw = raw.get("stale_after_seconds", 24 * 60 * 60)
         poll_raw = raw.get("poll_interval_seconds", 5.0)
@@ -843,7 +850,7 @@ def load_dashboard_config(path: str | Path | None = None) -> DashboardConfig:
     """
 
     if path is None:
-        return DashboardConfig(static_root=(Path.cwd() / "dashboard" / "static").resolve())
+        return DashboardConfig()
     original_config_path = Path(path)
     if original_config_path.exists() and original_config_path.is_symlink():
         raise ConfigError("config file must not be a symlink")
