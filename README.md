@@ -42,12 +42,24 @@ PumpQuant replays every [Pump.fun](https://pump.fun) trade with the latency, fee
 <br>
 
 <p align="center">
-  <img src="assets/scene-answer.png" width="49%" alt="The dashboard's answer screen: profitable in 2 of 3 test periods, +0.217 SOL combined across 47 outcomes.">
-  <img src="assets/scene-periods.png" width="49%" alt="Three test periods side by side: -0.127, +0.268 and +0.076 SOL, each with its trades as bars.">
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="assets/scene-answer-light.png">
+    <img src="assets/scene-answer.png" width="49%" alt="The dashboard's answer screen: profitable in 2 of 3 test periods, +0.217 SOL combined across 47 outcomes.">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="assets/scene-periods-light.png">
+    <img src="assets/scene-periods.png" width="49%" alt="Test periods side by side: -0.127 SOL and +0.268 SOL, each with its trades as bars.">
+  </picture>
 </p>
 <p align="center">
-  <img src="assets/scene-replay.png" width="49%" alt="A replayed trade: signal, buy one second later, stop-loss sell, and the result after fees.">
-  <img src="assets/scene-method.png" width="49%" alt="The walk-forward method: learn on earlier tokens, then test on the next six, drawn to scale.">
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="assets/scene-replay-light.png">
+    <img src="assets/scene-replay.png" width="49%" alt="A replayed trade on token #19: signal, buy one second later, stop-loss sell, -0.024 SOL after fees.">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="assets/scene-method-light.png">
+    <img src="assets/scene-method.png" width="49%" alt="The walk-forward method: learn on earlier tokens, then test on the next six, drawn to scale.">
+  </picture>
 </p>
 <p align="center"><sub>The local dashboard, running on the bundled demo. Simulated data.</sub></p>
 
@@ -95,7 +107,6 @@ PumpQuant started as a live trading system. Its early stage was profitable, but 
 | Exits fill once the price is reached | Retries and slow RPCs pushed the slowest exit to about 71 s |
 
 The engine was rebuilt so none of these can recur. Under the corrected model the strategy lost money in all 16 test windows and was retired. The full audit is in the [case study](docs/PARITY_CASE_STUDY.md).
-
 
 ## Project layout
 
